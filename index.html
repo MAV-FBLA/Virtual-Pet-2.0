@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FBLA Virtual Pet 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a1a;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .interactable {
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .stat-bar-container {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 9999px;
+            overflow: hidden;
+            height: 8px;
+        }
+
+        .stat-bar-fill {
+            height: 100%;
+            transition: width 0.5s ease, background-color 0.5s ease;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .toast-enter {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+
+        .toast-enter-active {
+            transform: translateX(0);
+            opacity: 1;
+            transition: all 0.3s ease-out;
+        }
+
+        .toast-exit {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast-exit-active {
+            transform: translateX(100%);
+            opacity: 0;
+            transition: all 0.3s ease-in;
+        }
+    </style>
+    <!-- Import Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- 3D Container -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Layer -->
+    <div id="ui-layer" class="ui-layer flex flex-col justify-between p-6">
+
+        <!-- Start Screen -->
+        <div id="start-screen"
+            class="absolute inset-0 z-50 flex items-center justify-center bg-slate-900 bg-opacity-95 interactable">
+            <div class="glass-panel p-8 rounded-2xl max-w-2xl w-full text-center fade-in">
+                <h1 class="text-4xl font-bold text-teal-400 mb-2">FBLA Virtual Pet</h1>
+                <p class="text-slate-300 mb-8">Choose your companion and start your journey.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <button onclick="startGame('dog')"
+                        class="p-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 transition hover:scale-105 group">
+                        <div class="text-4xl mb-2 group-hover:animate-bounce">🐶</div>
+                        <h3 class="text-xl font-bold text-white">Dog</h3>
+                        <p class="text-xs text-slate-400 mt-1">Loyal & Energetic</p>
+                    </button>
+                    <button onclick="startGame('cat')"
+                        class="p-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 transition hover:scale-105 group">
+                        <div class="text-4xl mb-2 group-hover:animate-bounce">🐱</div>
+                        <h3 class="text-xl font-bold text-white">Cat</h3>
+                        <p class="text-xs text-slate-400 mt-1">Independent & Clean</p>
+                    </button>
+                    <button onclick="startGame('dragon')"
+                        class="p-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 transition hover:scale-105 group">
+                        <div class="text-4xl mb-2 group-hover:animate-bounce">🐲</div>
+                        <h3 class="text-xl font-bold text-white">Dragon</h3>
+                        <p class="text-xs text-slate-400 mt-1">Mystical & Strong</p>
+                    </button>
+                </div>
+
+                <div class="mb-6">
+                    <input type="text" id="pet-name-input" placeholder="Name your pet..."
+                        class="w-full p-3 rounded-lg bg-slate-800 text-white border border-slate-600 focus:border-teal-400 focus:outline-none text-center text-lg">
+                </div>
+            </div>
+        </div>
+
+        <!-- HUD (Hidden initially) -->
+        <div id="hud" class="hidden w-full h-full relative">
+
+            <!-- Top Bar: Stats & Currency -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+
+                <!-- Stats Panel -->
+                <div
+                    class="glass-panel p-4 rounded-xl flex flex-wrap gap-6 text-sm text-slate-200 w-full md:w-auto interactable">
+                    <div class="w-24">
+                        <div class="flex justify-between mb-1"><span>Hunger</span><span id="val-hunger">100</span></div>
+                        <div class="stat-bar-container">
+                            <div id="bar-hunger" class="stat-bar-fill bg-orange-400" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="w-24">
+                        <div class="flex justify-between mb-1"><span>Thirst</span><span id="val-thirst">100</span></div>
+                        <div class="stat-bar-container">
+                            <div id="bar-thirst" class="stat-bar-fill bg-blue-400" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="w-24">
+                        <div class="flex justify-between mb-1"><span>Energy</span><span id="val-energy">100</span></div>
+                        <div class="stat-bar-container">
+                            <div id="bar-energy" class="stat-bar-fill bg-yellow-400" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="w-24">
+                        <div class="flex justify-between mb-1"><span>Hygiene</span><span id="val-hygiene">100</span>
+                        </div>
+                        <div class="stat-bar-container">
+                            <div id="bar-hygiene" class="stat-bar-fill bg-purple-400" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="w-24">
+                        <div class="flex justify-between mb-1"><span>Health</span><span id="val-health">100</span></div>
+                        <div class="stat-bar-container">
+                            <div id="bar-health" class="stat-bar-fill bg-red-500" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Panel -->
+                <div
+                    class="glass-panel p-3 px-6 rounded-xl flex items-center gap-6 text-white interactable animate-float">
+                    <div>
+                        <div class="text-xs text-slate-400 uppercase tracking-widest">Balance</div>
+                        <div class="text-2xl font-bold text-green-400">$<span id="display-money">100</span></div>
+                    </div>
+                    <div class="h-8 w-px bg-slate-600"></div>
+                    <div>
+                        <div class="text-xs text-slate-400 uppercase tracking-widest">Savings</div>
+                        <div class="text-xl font-semibold text-blue-300">$<span id="display-savings">0</span> / <span
+                                id="goal-savings">500</span></div>
+                    </div>
+                    <div class="h-8 w-px bg-slate-600"></div>
+                    <button onclick="toggleInsurance()" id="btn-insurance"
+                        class="text-xs px-3 py-1 rounded border border-slate-500 hover:bg-slate-700 transition">
+                        Insurance: <span id="status-insurance" class="text-red-400 font-bold">OFF</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pet Status Floater -->
+            <div class="absolute top-32 left-0 glass-panel p-3 rounded-xl interactable" id="pet-emotion-panel">
+                <div class="text-3xl text-center mb-1" id="pet-emoji">😐</div>
+                <div class="text-xs text-slate-400 text-center uppercase tracking-wider" id="pet-status-text">Neutral
+                </div>
+            </div>
+
+            <!-- Notifications Area -->
+            <div id="notification-area"
+                class="absolute bottom-4 right-0 flex flex-col gap-2 items-end pointer-events-none w-80 p-4 overflow-hidden">
+                <!-- Toasts injected here -->
+            </div>
+
+            <!-- Room Navigation (Bottom Center) - REMOVED for 3D Doors -->
+            <!-- <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 glass-panel p-2 rounded-full flex gap-2 interactable">...</div> -->
+        </div>
+
+        <!-- Modals -->
+
+        <!-- Marketplace Modal -->
+        <div id="modal-marketplace"
+            class="hidden absolute inset-0 z-40 flex items-center justify-center bg-black/60 interactable">
+            <div class="glass-panel w-full max-w-3xl p-6 rounded-2xl relative">
+                <button onclick="closeModal('modal-marketplace')"
+                    class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl">&times;</button>
+                <h2 class="text-2xl font-bold text-white mb-6">🛒 Marketplace</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Food -->
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                        <h3 class="text-lg font-semibold text-orange-400 mb-2">Food & Drink</h3>
+                        <button onclick="buyItem('kibble', 15)"
+                            class="w-full flex justify-between p-2 hover:bg-slate-700 rounded mb-2 text-slate-200">
+                            <span>🍖 Premium Kibble</span> <span class="text-green-400">$15</span>
+                        </button>
+                        <button onclick="buyItem('water', 5)"
+                            class="w-full flex justify-between p-2 hover:bg-slate-700 rounded mb-2 text-slate-200">
+                            <span>💧 Fresh Water</span> <span class="text-green-400">$5</span>
+                        </button>
+                    </div>
+                    <!-- Health -->
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                        <h3 class="text-lg font-semibold text-red-400 mb-2">Healthcare</h3>
+                        <button onclick="visitVet()"
+                            class="w-full flex justify-between p-2 hover:bg-slate-700 rounded mb-2 text-slate-200">
+                            <span>🏥 Vet Visit</span> <span class="text-green-400" id="vet-cost-display">$100</span>
+                        </button>
+                        <button onclick="buyItem('medicine', 40)"
+                            class="w-full flex justify-between p-2 hover:bg-slate-700 rounded mb-2 text-slate-200">
+                            <span>💊 Vitamins</span> <span class="text-green-400">$40</span>
+                        </button>
+                    </div>
+                    <!-- Savings -->
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                        <h3 class="text-lg font-semibold text-blue-400 mb-2">Finance</h3>
+                        <div class="flex gap-2 mb-2">
+                            <input id="deposit-amount" type="number"
+                                class="w-full bg-slate-900 border border-slate-600 rounded p-1 text-white"
+                                placeholder="Amount">
+                            <button onclick="depositSavings()"
+                                class="px-3 bg-blue-600 hover:bg-blue-500 text-white rounded">Dep</button>
+                        </div>
+                        <p class="text-xs text-slate-400">Goal Reward: Special Hat Accessory 🎩</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fridge Modal -->
+        <div id="modal-fridge"
+            class="hidden absolute inset-0 z-40 flex items-center justify-center bg-black/60 interactable">
+            <div class="glass-panel w-full max-w-lg p-6 rounded-2xl relative">
+                <button onclick="closeModal('modal-fridge')"
+                    class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl">&times;</button>
+                <h2 class="text-2xl font-bold text-white mb-6">❄️ Fridge</h2>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Food Stock -->
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 text-center">
+                        <div class="text-4xl mb-2">🍖</div>
+                        <h3 class="text-xl font-bold text-white mb-1">Food</h3>
+                        <p class="text-slate-400 mb-4">Stock: <span id="stock-food"
+                                class="text-white font-bold">0</span></p>
+                        <button onclick="consumeItem('food')"
+                            class="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded font-bold">Eat</button>
+                    </div>
+
+                    <!-- Water Stock -->
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 text-center">
+                        <div class="text-4xl mb-2">💧</div>
+                        <h3 class="text-xl font-bold text-white mb-1">Water</h3>
+                        <p class="text-slate-400 mb-4">Stock: <span id="stock-water"
+                                class="text-white font-bold">0</span></p>
+                        <button onclick="consumeItem('water')"
+                            class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Drink</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Three.js Global Build (No Import/Modules needed) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- MAIN SCRIPT -->
+    <script>
+        // No imports needed - THREE is now a global variable
+
+
+        // --- Game Configuration & State ---
+        const CONFIG = {
+            decayRates: {
+                hunger: 0.8,    // per second (faster for demo)
+                thirst: 1.0,
+                energy: 0.5,
+                hygiene: 0.6,
+                health: 0.1     // health decays slowly if other stats are low
+            },
+            insuranceCost: 20,
+            insuranceInterval: 30000, // 30s
+            vetCost: 100,
+            vetCostInsured: 20,
+            savingsGoal: 500,
+            salary: 50 // per work session
+        };
+
+        const STATE = {
+            money: 200,
+            savings: 0,
+            hasInsurance: false,
+            petName: "Buddy",
+            petType: "dog",
+            stats: {
+                hunger: 100,
+                thirst: 100,
+                energy: 100,
+                hygiene: 100,
+                health: 100
+            },
+            inventory: {
+                food: 0,
+                water: 0,
+                hatUnlocked: false
+            },
+            isSick: false,
+            currentRoom: 'livingroom',
+            lastTick: Date.now()
+        };
+
+        // --- Three.js Globals ---
+        let scene, camera, renderer;
+        let petGroup, petMesh, emoteSprite;
+        let hatMesh;
+        let roomGroup;
+        let raycaster, pointer;
+
+        // --- Initialization ---
+        window.startGame = (type) => {
+            const nameInput = document.getElementById('pet-name-input').value.trim();
+            if (!nameInput) {
+                showNotification("Please name your pet!", "error");
+                return;
+            }
+            STATE.petType = type;
+            STATE.petName = nameInput;
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+
+            initThreeJS();
+            initGameLoop();
+
+            showNotification(`Welcome, ${STATE.petName}!`, "success");
+        };
+
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x202025);
+            scene.fog = new THREE.Fog(0x202025, 10, 50);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 15);
+            camera.lookAt(0, 0, 0);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // Raycaster
+            raycaster = new THREE.Raycaster();
+            pointer = new THREE.Vector2();
+            window.addEventListener('click', onMouseClick);
+            window.addEventListener('resize', onWindowResize);
+
+            // Build Initial Scene
+            buildRoom();
+            buildPet();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Scene Building ---
+        function buildRoom() {
+            if (roomGroup) scene.remove(roomGroup);
+            roomGroup = new THREE.Group();
+
+            // Determine materials based on room
+            let floorMat, wallColor, doorFrameColor, doorPanelColor;
+
+            if (STATE.currentRoom === 'bathroom') {
+                // Checkerboard Texture for Bathroom
+                const canvas = document.createElement('canvas');
+                canvas.width = 64; canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 64, 64);
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(0, 0, 32, 32); ctx.fillRect(32, 32, 32, 32);
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.magFilter = THREE.NearestFilter;
+                tex.wrapS = THREE.RepeatWrapping;
+                tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(10, 10);
+
+                floorMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 });
+                wallColor = 0xf1f5f9; // Slate-100
+                doorFrameColor = 0xffffff;
+                doorPanelColor = 0xe2e8f0;
+            } else {
+                floorMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+                wallColor = 0x475569;
+                doorFrameColor = 0x1e293b;
+                doorPanelColor = 0x64748b;
+            }
+
+            // Floor
+            const floorGeo = new THREE.PlaneGeometry(30, 30);
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            roomGroup.add(floor);
+
+            // Walls
+            const wallMat = new THREE.MeshStandardMaterial({ color: wallColor });
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(30, 10, 1), wallMat);
+            backWall.position.set(0, 5, -15);
+            backWall.receiveShadow = true;
+            roomGroup.add(backWall);
+
+            const sideWallGeo = new THREE.BoxGeometry(1, 10, 30);
+            const leftWall = new THREE.Mesh(sideWallGeo, wallMat);
+            leftWall.position.set(-15, 5, 0);
+            leftWall.receiveShadow = true;
+            roomGroup.add(leftWall);
+
+            const rightWall = new THREE.Mesh(sideWallGeo, wallMat);
+            rightWall.position.set(15, 5, 0);
+            rightWall.receiveShadow = true;
+            roomGroup.add(rightWall);
+
+            // --- Room Configs ---
+            if (STATE.currentRoom === 'livingroom') {
+                createFurniture(0, 0, -5, 0x1e293b, "Sofa");
+                createComputer(5, 2, -10);
+
+                createDoor(-8, 0, -14.5, 0, 'kitchen', 0xf97316);
+                createDoor(8, 0, -14.5, 0, 'bathroom', 0x3b82f6);
+                createDoor(-14.5, 0, 0, Math.PI / 2, 'bedroom', 0x8b5cf6);
+
+            } else if (STATE.currentRoom === 'kitchen') {
+                createKitchenFixtures();
+                createDoor(0, 0, -14.5, 0, 'livingroom', 0x14b8a6);
+                createDoor(0, 0, -14.5, 0, 'livingroom', 0x14b8a6);
+
+            } else if (STATE.currentRoom === 'bedroom') {
+                createBedroomFixtures();
+                createDoor(12, 0, 0, -Math.PI / 2, 'livingroom', 0x14b8a6, 0xffffff, 0xcbd5e1); // Moved slightly in and brighter colors for visibility
+
+            } else if (STATE.currentRoom === 'bathroom') {
+                createBathroomFixtures();
+                createDoor(-8, 0, -14.5, 0, 'livingroom', 0x14b8a6, doorFrameColor, doorPanelColor);
+            }
+
+            scene.add(roomGroup);
+        }
+
+        function createDoor(x, y, z, rotationY, targetRoom, colorHex, frameColor = 0x1e293b, panelColor = 0x64748b) {
+            const doorGroup = new THREE.Group();
+            doorGroup.position.set(x, y, z);
+            doorGroup.rotation.y = rotationY;
+
+            // Attach interaction to the whole group so clicking frame/knob/sign works
+            doorGroup.userData = { type: 'interactable', action: `changeRoom:${targetRoom}` };
+
+            // Frame (The solid backdrop)
+            const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(5, 8, 1), new THREE.MeshStandardMaterial({ color: frameColor }));
+            doorFrame.position.y = 4;
+            doorGroup.add(doorFrame);
+
+            // Panel (The distinct door part - moved forward to overlap properly)
+            const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(4, 7.5, 0.2), new THREE.MeshStandardMaterial({ color: panelColor }));
+            doorPanel.position.set(0, 3.8, 0.6);
+            doorGroup.add(doorPanel);
+
+            // Label / Knob
+            const knob = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshStandardMaterial({ color: colorHex }));
+            knob.position.set(1.5, 3.5, 0.8);
+            doorGroup.add(knob);
+
+            // Hover text equivalent (Sign above door)
+            const sign = new THREE.Mesh(new THREE.BoxGeometry(3, 0.8, 0.2), new THREE.MeshStandardMaterial({ color: colorHex }));
+            sign.position.set(0, 8.5, 0);
+            doorGroup.add(sign);
+
+            // Add an invisible larger hitbox just in case
+            const hitBox = new THREE.Mesh(new THREE.BoxGeometry(5, 8, 2), new THREE.MeshBasicMaterial({ visible: false }));
+            hitBox.position.y = 4;
+            doorGroup.add(hitBox);
+
+            roomGroup.add(doorGroup);
+        }
+
+        function createBathroomFixtures() {
+            // Bathtub (Interactive)
+            const tubGroup = new THREE.Group();
+            tubGroup.position.set(6, 0, -10); // Moved slightly right
+
+            const tubMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            const chromeMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.2 });
+
+            const tubBase = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 3), tubMat);
+            tubBase.position.y = 1.25;
+            tubGroup.add(tubBase);
+
+            // Water
+            const water = new THREE.Mesh(new THREE.PlaneGeometry(5, 2.5), new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6 }));
+            water.rotation.x = -Math.PI / 2;
+            water.position.y = 2.0;
+            tubGroup.add(water);
+
+            // Tub Faucet
+            const tFaucetV = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1), chromeMat);
+            tFaucetV.position.set(0, 3, -1.5);
+            tubGroup.add(tFaucetV);
+            const tFaucetH = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.5), chromeMat);
+            tFaucetH.position.set(0, 3.5, -1.3);
+            tFaucetH.rotation.x = Math.PI / 2; // Pointing forward
+            tubGroup.add(tFaucetH);
+
+            tubGroup.userData = { type: 'interactable', action: 'cleanPet' };
+            // Add clearer hitbox
+            const tubHit = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 3), new THREE.MeshBasicMaterial({ visible: false }));
+            tubHit.position.y = 1.5;
+            tubGroup.add(tubHit);
+            roomGroup.add(tubGroup);
+
+            // Toilet (Moved to corner, away from door)
+            const toiletGroup = new THREE.Group();
+            toiletGroup.position.set(-13, 0, -14);
+            const tBase = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 2), tubMat);
+            tBase.position.y = 0.75;
+            toiletGroup.add(tBase);
+            const tTank = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2, 0.8), tubMat);
+            tTank.position.set(0, 2.5, -0.6);
+            toiletGroup.add(tTank);
+            roomGroup.add(toiletGroup);
+
+            // Sink
+            const sinkGroup = new THREE.Group();
+            sinkGroup.position.set(0, 0, -14);
+            const sPedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 3), tubMat);
+            sPedestal.position.y = 1.5;
+            sinkGroup.add(sPedestal);
+            const sBasin = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 1.5), tubMat);
+            sBasin.position.y = 3;
+            sinkGroup.add(sBasin);
+
+            // Sink Faucet
+            const sFaucetV = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5), chromeMat);
+            sFaucetV.position.set(0, 3.4, -0.6);
+            sinkGroup.add(sFaucetV);
+            const sFaucetH = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5), chromeMat);
+            sFaucetH.position.set(0, 3.6, -0.4);
+            sFaucetH.rotation.x = Math.PI / 2;
+            sinkGroup.add(sFaucetH);
+
+            // Mirror
+            const mirror = new THREE.Mesh(new THREE.PlaneGeometry(2, 3), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.1 }));
+            mirror.position.set(0, 5, -14.9);
+            roomGroup.add(mirror);
+
+            roomGroup.add(sinkGroup);
+        }
+
+        function createFurniture(x, y, z, color, type) {
+            const geo = new THREE.BoxGeometry(4, 2, 2);
+            const mat = new THREE.MeshStandardMaterial({ color: color });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, 1, z); // simplified y
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.userData = { type: 'furniture', name: type };
+            roomGroup.add(mesh);
+        }
+
+        function createBedroomFixtures() {
+            const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f });
+            const mattressMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            const sheetMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6 }); // Blue sheets
+            const pillowMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
+
+            // --- Large Bed (Center-Back) ---
+            const bedGroup = new THREE.Group();
+            bedGroup.position.set(0, 0, -10);
+
+            // Frame
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(8, 2, 7), woodMat);
+            frame.position.y = 1;
+            bedGroup.add(frame);
+
+            // Headboard
+            const headboard = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.5), woodMat);
+            headboard.position.set(0, 3, -3.25);
+            bedGroup.add(headboard);
+
+            // Mattress
+            const mattress = new THREE.Mesh(new THREE.BoxGeometry(7.5, 1, 6.5), mattressMat);
+            mattress.position.y = 2.5;
+            bedGroup.add(mattress);
+
+            // Sheets (Bottom half)
+            const sheets = new THREE.Mesh(new THREE.BoxGeometry(7.6, 1.1, 4), sheetMat);
+            sheets.position.set(0, 2.5, 1.25);
+            bedGroup.add(sheets);
+
+            // Pillows
+            const p1 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 1.5), pillowMat);
+            p1.position.set(-2, 3.2, -2);
+            bedGroup.add(p1);
+            const p2 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 1.5), pillowMat);
+            p2.position.set(2, 3.2, -2);
+            bedGroup.add(p2);
+
+            bedGroup.userData = { type: 'interactable', action: 'sleep' };
+            roomGroup.add(bedGroup);
+
+            // --- Nightstands ---
+            const nsGeo = new THREE.BoxGeometry(2, 2.5, 2);
+
+            // Left NS
+            const nsL = new THREE.Mesh(nsGeo, woodMat);
+            nsL.position.set(-5.5, 1.25, -12);
+            roomGroup.add(nsL);
+            // Lamp L
+            const lampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 0.5), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+            lampBase.position.set(-5.5, 2.75, -12);
+            roomGroup.add(lampBase);
+            const lampShade = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1, 4, 1, true), new THREE.MeshStandardMaterial({ color: 0xfff7ed, transparent: true, opacity: 0.9 }));
+            lampShade.position.set(-5.5, 3.5, -12);
+            roomGroup.add(lampShade);
+
+            // Right NS
+            const nsR = new THREE.Mesh(nsGeo, woodMat);
+            nsR.position.set(5.5, 1.25, -12);
+            roomGroup.add(nsR);
+            // Lamp R
+            const lampBaseR = lampBase.clone();
+            lampBaseR.position.set(5.5, 2.75, -12);
+            roomGroup.add(lampBaseR);
+            const lampShadeR = lampShade.clone();
+            lampShadeR.position.set(5.5, 3.5, -12);
+            roomGroup.add(lampShadeR);
+        }
+
+        function createKitchenFixtures() {
+            const chromeMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.6, roughness: 0.3 });
+            const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+            const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f });
+
+            // --- Fridge (Left) ---
+            const fridgeGroup = new THREE.Group();
+            fridgeGroup.position.set(-13, 0, -13);
+
+            // Main Body
+            const fridgeBody = new THREE.Mesh(new THREE.BoxGeometry(3, 7, 3), whiteMat);
+            fridgeBody.position.y = 3.5;
+            fridgeGroup.add(fridgeBody);
+
+            // Door Slits/Handles
+            const handle = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.5, 0.2), chromeMat);
+            handle.position.set(1, 4, 1.6);
+            fridgeGroup.add(handle);
+            const handleLower = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.5, 0.2), chromeMat);
+            handleLower.position.set(1, 2, 1.6);
+            fridgeGroup.add(handleLower);
+
+            fridgeGroup.userData = { type: 'interactable', action: 'openFridge' }; // Fridge opens inventory
+            roomGroup.add(fridgeGroup);
+
+            // --- Countertop & Cabinets (Center-Left to Center-Right) ---
+            const counterHeight = 3.5;
+
+            // Lower Cabinets
+            const cabGeo = new THREE.BoxGeometry(5, counterHeight, 3);
+            const cabMesh = new THREE.Mesh(cabGeo, woodMat);
+            cabMesh.position.set(-9, counterHeight / 2, -13);
+            roomGroup.add(cabMesh);
+
+            // Countertop
+            const counterTop = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.2, 3.2), chromeMat);
+            counterTop.position.set(-9, counterHeight, -13);
+            roomGroup.add(counterTop);
+
+            // Microwave (On counter)
+            const microGroup = new THREE.Group();
+            microGroup.position.set(-9, counterHeight + 1, -13);
+            const mBody = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.5, 1.5), whiteMat);
+            microGroup.add(mBody);
+            const mWindow = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.8), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+            mWindow.position.z = 0.76;
+            microGroup.add(mWindow);
+            roomGroup.add(microGroup);
+
+            // --- Stove (Right side of counters) ---
+            const stoveGroup = new THREE.Group();
+            stoveGroup.position.set(-5, 0, -13);
+
+            // Oven Body
+            const stoveBody = new THREE.Mesh(new THREE.BoxGeometry(3, counterHeight, 3), new THREE.MeshStandardMaterial({ color: 0xe2e8f0 }));
+            stoveBody.position.y = counterHeight / 2;
+            stoveGroup.add(stoveBody);
+
+            // Burners
+            const burnerGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.1);
+            const burnerMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+            const b1 = new THREE.Mesh(burnerGeo, burnerMat); b1.position.set(-0.7, counterHeight + 0.05, 0.7); stoveGroup.add(b1);
+            const b2 = new THREE.Mesh(burnerGeo, burnerMat); b2.position.set(0.7, counterHeight + 0.05, 0.7); stoveGroup.add(b2);
+            const b3 = new THREE.Mesh(burnerGeo, burnerMat); b3.position.set(-0.7, counterHeight + 0.05, -0.7); stoveGroup.add(b3);
+            const b4 = new THREE.Mesh(burnerGeo, burnerMat); b4.position.set(0.7, counterHeight + 0.05, -0.7); stoveGroup.add(b4);
+
+            // Oven Window
+            const ovenWin = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.5), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+            ovenWin.position.set(0, 1.8, 1.51);
+            stoveGroup.add(ovenWin);
+
+            stoveGroup.userData = { type: 'interactable', action: '' };
+            roomGroup.add(stoveGroup);
+
+            // --- Dining Table (Center Room) ---
+            const tableGroup = new THREE.Group();
+            tableGroup.position.set(8, 0, -5);
+
+            // Table Top
+            const tTop = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 0.2, 32), new THREE.MeshStandardMaterial({ color: 0xffedd5 }));
+            tTop.position.y = 2.5;
+            tableGroup.add(tTop);
+
+            // Leg
+            const tLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, 2.5), new THREE.MeshStandardMaterial({ color: 0x78350f }));
+            tLeg.position.y = 1.25;
+            tableGroup.add(tLeg);
+
+            // Chairs
+            for (let i = 0; i < 4; i++) {
+                const chair = new THREE.Group();
+                const angle = (i / 4) * Math.PI * 2;
+                const radius = 5;
+                const cx = Math.cos(angle) * radius;
+                const cz = Math.sin(angle) * radius;
+                chair.position.set(cx, 0, cz);
+                chair.lookAt(cx * 2, 0, cz * 2);
+
+                const seat = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.2, 1.5), woodMat);
+                seat.position.y = 1.2;
+                chair.add(seat);
+
+                const back = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 0.2), woodMat);
+                back.position.set(0, 2, 0.65);
+                chair.add(back);
+
+                const cLeg = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), new THREE.MeshStandardMaterial({ color: 0x78350f, wireframe: false }));
+                // Simplified leg block
+                const cBase = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2), woodMat);
+                cBase.position.y = 0.6;
+                chair.add(cBase);
+
+                tableGroup.add(chair);
+            }
+
+            roomGroup.add(tableGroup);
+        }
+
+        function createComputer(x, y, z) {
+            const group = new THREE.Group();
+            group.position.set(x, y, z);
+
+            // Desk
+            const desk = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 2), new THREE.MeshStandardMaterial({ color: 0x5c3a21 }));
+            group.add(desk);
+
+            // Monitor
+            const monitor = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1, 0.1), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+            monitor.position.set(0, 0.6, 0);
+            group.add(monitor);
+
+            // Screen glow
+            const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.8), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
+            screen.position.set(0, 0.6, 0.06);
+            group.add(screen);
+
+            group.userData = { type: 'interactable', action: 'openMarket' };
+            // Make children interactable bubbling up to group logic manually or just hit box
+            const hitBox = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 2), new THREE.MeshBasicMaterial({ visible: false }));
+            hitBox.userData = { type: 'interactable', action: 'openMarket' };
+            group.add(hitBox);
+
+            roomGroup.add(group);
+        }
+
+        function buildPet() {
+            if (petGroup) scene.remove(petGroup);
+            petGroup = new THREE.Group();
+
+            const mainColor = STATE.petType === 'dog' ? 0xd97706 : (STATE.petType === 'cat' ? 0x94a3b8 : 0x10b981);
+            const secondaryColor = 0xffffff; // White accents
+
+            const matInfo = {
+                body: new THREE.MeshStandardMaterial({ color: mainColor }),
+                accent: new THREE.MeshStandardMaterial({ color: secondaryColor }),
+                dark: new THREE.MeshStandardMaterial({ color: 0x1e293b }) // Eyes/Nose
+            };
+
+            if (STATE.petType === 'dog' || STATE.petType === 'cat') {
+                // --- QUADRUPED BUILD ---
+
+                // Body
+                const bodyMsg = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1, 1.8), matInfo.body);
+                bodyMsg.position.y = 1;
+                bodyMsg.castShadow = true;
+                petGroup.add(bodyMsg);
+
+                // Head Group (for animation)
+                const headGroup = new THREE.Group();
+                headGroup.position.set(0, 1.8, 0.8);
+
+                // Head Base
+                const headMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), matInfo.body);
+                headGroup.add(headMesh);
+
+                // Snout (Dog vs Cat diff)
+                const snoutLen = STATE.petType === 'dog' ? 0.6 : 0.2;
+                const snoutMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, snoutLen), matInfo.accent);
+                snoutMesh.position.set(0, -0.1, 0.5 + snoutLen / 2);
+                headGroup.add(snoutMesh);
+
+                // Nose
+                const noseMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.1), matInfo.dark);
+                noseMesh.position.set(0, 0.05, 0.5 + snoutLen);
+                headGroup.add(noseMesh);
+
+                // Ears
+                const earGeo = new THREE.ConeGeometry(0.2, 0.4, 4);
+                const earL = new THREE.Mesh(earGeo, matInfo.body);
+                earL.position.set(-0.35, 0.6, 0);
+                earL.rotation.x = -0.2;
+                earL.rotation.z = 0.2;
+                const earR = new THREE.Mesh(earGeo, matInfo.body);
+                earR.position.set(0.35, 0.6, 0);
+                earR.rotation.x = -0.2;
+                earR.rotation.z = -0.2;
+                headGroup.add(earL);
+                headGroup.add(earR);
+
+                // Eyes
+                const eyeGeo = new THREE.BoxGeometry(0.15, 0.15, 0.1);
+                const eyeL = new THREE.Mesh(eyeGeo, matInfo.dark);
+                eyeL.position.set(-0.25, 0.1, 0.5);
+                const eyeR = new THREE.Mesh(eyeGeo, matInfo.dark);
+                eyeR.position.set(0.25, 0.1, 0.5);
+                headGroup.add(eyeL);
+                headGroup.add(eyeR);
+
+                petGroup.add(headGroup);
+
+                // Legs
+                const legGeo = new THREE.BoxGeometry(0.35, 0.8, 0.35);
+                const legPositions = [
+                    { x: -0.4, y: 0.4, z: 0.6 },
+                    { x: 0.4, y: 0.4, z: 0.6 },
+                    { x: -0.4, y: 0.4, z: -0.6 },
+                    { x: 0.4, y: 0.4, z: -0.6 }
+                ];
+                legPositions.forEach(pos => {
+                    const leg = new THREE.Mesh(legGeo, matInfo.body);
+                    leg.position.set(pos.x, pos.y, pos.z);
+                    leg.castShadow = true;
+                    petGroup.add(leg);
+                });
+
+                // Tail
+                const tailGeo = new THREE.BoxGeometry(0.2, 0.2, 0.8);
+                const tail = new THREE.Mesh(tailGeo, matInfo.body);
+                tail.position.set(0, 1.4, -1);
+                tail.rotation.x = 0.5;
+                petGroup.add(tail);
+
+                // Store head for animation usually, but we rotate whole group for now
+
+            } else if (STATE.petType === 'dragon') {
+                // Simple Dragon Logic
+                const bodyMsg = new THREE.Mesh(new THREE.ConeGeometry(1, 2, 8), matInfo.body);
+                bodyMsg.position.y = 1;
+                petGroup.add(bodyMsg);
+
+                const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 1.2), matInfo.body);
+                headMesh.position.set(0, 2, 0.5);
+                petGroup.add(headMesh);
+
+                // Wings
+                const wingGeo = new THREE.ConeGeometry(0.8, 0.2, 3);
+                const wingL = new THREE.Mesh(wingGeo, matInfo.accent);
+                wingL.position.set(-0.8, 1.5, 0);
+                wingL.rotation.z = 0.5;
+                petGroup.add(wingL);
+
+                const wingR = new THREE.Mesh(wingGeo, matInfo.accent);
+                wingR.position.set(0.8, 1.5, 0);
+                wingR.rotation.z = -0.5;
+                petGroup.add(wingR);
+            }
+
+            // Hat (Unlockable) - Re-attach
+            if (STATE.inventory.hatUnlocked) {
+                const hatGeo = new THREE.CylinderGeometry(0.4, 0.6, 0.5, 8);
+                const hatMat = new THREE.MeshStandardMaterial({ color: 0xfacc15 });
+                hatMesh = new THREE.Mesh(hatGeo, hatMat);
+                // Adjust position based on new head
+                hatMesh.position.set(0, STATE.petType === 'dragon' ? 2.6 : 2.5, STATE.petType === 'dragon' ? 0.5 : 0.8);
+                petGroup.add(hatMesh);
+            }
+
+            scene.add(petGroup);
+
+        }
+
+        // --- Game Logic ---
+        function initGameLoop() {
+            // Stat Decay Loop
+            setInterval(() => {
+                if (STATE.stats.health <= 0) return; // Game over or paused state usually
+
+                decayStats();
+                checkHealth();
+                updateUI();
+                updatePetBehavior();
+            }, 1000);
+
+            // Insurance Payment Loop
+            setInterval(() => {
+                if (STATE.hasInsurance) {
+                    if (STATE.money >= CONFIG.insuranceCost) {
+                        STATE.money -= CONFIG.insuranceCost;
+                        showNotification(`Insurance premium paid: -$${CONFIG.insuranceCost}`, "info");
+                        updateUI();
+                    } else {
+                        STATE.hasInsurance = false;
+                        showNotification("Insurance cancelled due to lack of funds!", "error");
+                        updateUI();
+                    }
+                }
+            }, CONFIG.insuranceInterval);
+
+            // Rendering Loop
+            renderer.setAnimationLoop(animate);
+        }
+
+        function decayStats() {
+            // Base decay
+            STATE.stats.hunger = Math.max(0, STATE.stats.hunger - CONFIG.decayRates.hunger);
+            STATE.stats.thirst = Math.max(0, STATE.stats.thirst - CONFIG.decayRates.thirst);
+            STATE.stats.energy = Math.max(0, STATE.stats.energy - CONFIG.decayRates.energy);
+            STATE.stats.hygiene = Math.max(0, STATE.stats.hygiene - CONFIG.decayRates.hygiene);
+
+            // Warning Notifications (Random chance to avoid spam)
+            if (STATE.stats.hunger < 20 && Math.random() < 0.1) showNotification(`${STATE.petName} is hungry!`, "warning");
+            if (STATE.stats.thirst < 20 && Math.random() < 0.1) showNotification(`${STATE.petName} is thirsty!`, "warning");
+            if (STATE.stats.energy < 20 && Math.random() < 0.1) showNotification(`${STATE.petName} is tired!`, "warning");
+
+            // Health decay if needs are not met
+            if (STATE.stats.hunger < 10 || STATE.stats.thirst < 10) {
+                STATE.stats.health = Math.max(0, STATE.stats.health - 2);
+            }
+            // Sickness chance based on hygiene
+            if (STATE.stats.hygiene < 30 && !STATE.isSick) {
+                if (Math.random() < 0.05) { // 5% chance per second if dirty
+                    STATE.isSick = true;
+                    showNotification(`${STATE.petName} has fallen sick! Visit the Vet!`, "error");
+                }
+            }
+
+            if (STATE.isSick) {
+                STATE.stats.health = Math.max(0, STATE.stats.health - 1);
+            }
+        }
+
+        function checkHealth() {
+            if (STATE.stats.health < 20) {
+                showNotification("Health Critical!", "error");
+            }
+        }
+
+        function updateUI() {
+            // Update Stat Bars
+            document.getElementById('val-hunger').innerText = Math.floor(STATE.stats.hunger);
+            document.getElementById('bar-hunger').style.width = `${STATE.stats.hunger}%`;
+
+            document.getElementById('val-thirst').innerText = Math.floor(STATE.stats.thirst);
+            document.getElementById('bar-thirst').style.width = `${STATE.stats.thirst}%`;
+
+            document.getElementById('val-energy').innerText = Math.floor(STATE.stats.energy);
+            document.getElementById('bar-energy').style.width = `${STATE.stats.energy}%`;
+
+            document.getElementById('val-hygiene').innerText = Math.floor(STATE.stats.hygiene);
+            document.getElementById('bar-hygiene').style.width = `${STATE.stats.hygiene}%`;
+
+            document.getElementById('val-health').innerText = Math.floor(STATE.stats.health);
+            document.getElementById('bar-health').style.width = `${STATE.stats.health}%`;
+
+            // Money & Savings
+            document.getElementById('display-money').innerText = STATE.money;
+            document.getElementById('display-savings').innerText = STATE.savings;
+
+            // Insurance Status
+            const insEl = document.getElementById('status-insurance');
+            insEl.innerText = STATE.hasInsurance ? "ON" : "OFF";
+            insEl.className = STATE.hasInsurance ? "text-green-400 font-bold" : "text-red-400 font-bold";
+
+            // Vet Cost
+            const vcost = STATE.hasInsurance ? CONFIG.vetCostInsured : CONFIG.vetCost;
+            document.getElementById('vet-cost-display').innerText = `$${vcost}`;
+        }
+
+        function updatePetBehavior() {
+            // Determine Emotion
+            let emotion = "Happy";
+            let emoji = "😊";
+
+            if (STATE.isSick) {
+                emotion = "Sick"; emoji = "🤢";
+            } else if (STATE.stats.health < 30) {
+                emotion = "Weak"; emoji = "🤕";
+            } else if (STATE.stats.hunger < 30) {
+                emotion = "Hungry"; emoji = "🤤";
+            } else if (STATE.stats.energy < 20) {
+                emotion = "Sleepy"; emoji = "😴";
+            } else if (STATE.stats.energy > 80) {
+                emotion = "Excited"; emoji = "🤩";
+            }
+
+            document.getElementById('pet-emoji').innerText = emoji;
+            document.getElementById('pet-status-text').innerText = emotion;
+
+            // Simple 3D animations
+            if (petGroup) {
+                // Reset defaults
+                petGroup.position.y = Math.max(0, petGroup.position.y * 0.9);
+                petGroup.rotation.z = 0;
+                petGroup.position.x = 0;
+
+                if (emotion === "Excited") {
+                    petGroup.position.y = Math.abs(Math.sin(Date.now() / 200)) * 0.5; // Jump
+                } else if (emotion === "Sleepy") {
+                    petGroup.rotation.z = Math.PI / 4; // Lay down
+                } else if (emotion === "Sick" || emotion === "Weak") {
+                    petGroup.position.x = Math.sin(Date.now() / 50) * 0.1; // Shiver
+                }
+            }
+        }
+
+        // --- Interaction ---
+        function onMouseClick(event) {
+            // Calculate pointer position
+            pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+            pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(pointer, camera);
+
+            const intersects = raycaster.intersectObjects(scene.children, true);
+
+            if (intersects.length > 0) {
+                // Check if we hit something interactable
+                // Traverse up to find user data
+                let obj = intersects[0].object;
+                while (obj) {
+                    if (obj.userData && obj.userData.type === 'interactable') {
+                        handleInteraction(obj.userData.action);
+                        break;
+                    }
+                    obj = obj.parent;
+                }
+            }
+        }
+
+        function handleInteraction(action) {
+            if (action === 'openMarket') {
+                document.getElementById('modal-marketplace').classList.remove('hidden');
+            }
+            if (action === 'openFridge') {
+                updateFridgeUI();
+                document.getElementById('modal-fridge').classList.remove('hidden');
+            }
+            if (action && action.startsWith('changeRoom:')) {
+                const target = action.split(':')[1];
+                changeRoom(target);
+            }
+            if (action === 'cleanPet') {
+                STATE.stats.hygiene = 100;
+                showNotification("Squeaky clean! 🛁", "success");
+                updateUI();
+
+                // Animation spin
+                if (petGroup) {
+                    let spins = 0;
+                    const spinInterval = setInterval(() => {
+                        petGroup.rotation.y += 0.5;
+                        spins++;
+                        if (spins > 20) {
+                            clearInterval(spinInterval);
+                            petGroup.rotation.y = 0;
+                        }
+                    }, 50);
+                }
+            }
+            if (action === 'sleep') {
+                STATE.stats.energy = 100;
+                // Fast forward time slightly? Or just heal
+                showNotification("Zzz... Rested up! Energy 100", "success");
+                updateUI();
+                if (petGroup) {
+                    petGroup.rotation.z = Math.PI / 2; // Lay down momentarily
+                    setTimeout(() => { if (petGroup) petGroup.rotation.z = 0; }, 2000);
+                }
+            }
+
+        }
+
+        // --- Global Actions (exposed to window) ---
+        window.changeRoom = (roomName) => {
+            if (roomName === 'work') {
+                doWork();
+                return;
+            }
+            STATE.currentRoom = roomName;
+            buildRoom();
+            showNotification(`Entered ${roomName}`, "info");
+        };
+
+        function doWork() {
+            if (STATE.stats.energy < 20) {
+                showNotification("Too tired to work!", "warning");
+                return;
+            }
+            STATE.money += CONFIG.salary;
+            STATE.stats.energy -= 15;
+            STATE.stats.hunger -= 10;
+            updateUI();
+            showNotification(`Worked hard! Earned $${CONFIG.salary}`, "success");
+        }
+
+        window.closeModal = (id) => {
+            document.getElementById(id).classList.add('hidden');
+        };
+
+        window.toggleInsurance = () => {
+            STATE.hasInsurance = !STATE.hasInsurance;
+            updateUI();
+            showNotification(`Insurance ${STATE.hasInsurance ? 'Activated' : 'Cancelled'}`, "info");
+        };
+
+        window.buyItem = (item, cost) => {
+            if (STATE.money >= cost) {
+                STATE.money -= cost;
+
+                // Add to inventory instead of consuming
+                if (item === 'kibble') {
+                    STATE.inventory.food = (STATE.inventory.food || 0) + 1;
+                    showNotification(`Bought Kibble! Stock: ${STATE.inventory.food}`, "success");
+                }
+                if (item === 'water') {
+                    STATE.inventory.water = (STATE.inventory.water || 0) + 1;
+                    showNotification(`Bought Water! Stock: ${STATE.inventory.water}`, "success");
+                }
+
+                // Medicine applies immediately still? Or maybe standard "food" vs "other"
+                if (item === 'medicine') {
+                    STATE.stats.health = Math.min(100, STATE.stats.health + 20);
+                    showNotification(`Applied Medicine!`, "success");
+                }
+
+                updateUI();
+                updateFridgeUI();
+            } else {
+                showNotification("Not enough money!", "error");
+            }
+        };
+
+        window.consumeItem = (type) => {
+            if (type === 'food') {
+                if (STATE.inventory.food > 0) {
+                    STATE.inventory.food--;
+                    STATE.stats.hunger = Math.min(100, STATE.stats.hunger + 40);
+                    showNotification("Yum! Hunger -40", "success");
+                } else {
+                    showNotification("No food in fridge!", "error");
+                }
+            } else if (type === 'water') {
+                if (STATE.inventory.water > 0) {
+                    STATE.inventory.water--;
+                    STATE.stats.thirst = Math.min(100, STATE.stats.thirst + 40);
+                    showNotification("Slurp! Thirst -40", "success");
+                } else {
+                    showNotification("No water in fridge!", "error");
+                }
+            }
+            updateUI();
+            updateFridgeUI(); // Refresh counts
+        };
+
+        function updateFridgeUI() {
+            document.getElementById('stock-food').innerText = STATE.inventory.food || 0;
+            document.getElementById('stock-water').innerText = STATE.inventory.water || 0;
+        }
+
+        window.visitVet = () => {
+            const cost = STATE.hasInsurance ? CONFIG.vetCostInsured : CONFIG.vetCost;
+            if (STATE.money >= cost) {
+                STATE.money -= cost;
+                STATE.isSick = false;
+                STATE.stats.health = 100;
+                showNotification("Pet fully healed!", "success");
+                updateUI();
+            } else {
+                showNotification("Cannot afford Vet!", "error");
+            }
+        };
+
+        window.depositSavings = () => {
+            const el = document.getElementById('deposit-amount');
+            const amount = parseInt(el.value);
+            if (amount > 0 && STATE.money >= amount) {
+                STATE.money -= amount;
+                STATE.savings += amount;
+                if (STATE.savings >= CONFIG.savingsGoal && !STATE.inventory.hatUnlocked) {
+                    STATE.inventory.hatUnlocked = true;
+                    buildPet();
+                    showNotification("GOAL REACHED! Hat unlocked!", "success");
+                }
+                updateUI();
+                el.value = '';
+            }
+        };
+
+        // --- Notification System ---
+        function showNotification(msg, type = 'info') {
+            const container = document.getElementById('notification-area');
+            const toast = document.createElement('div');
+
+            // Styles based on type
+            let colors = "bg-slate-800 border-slate-600";
+            if (type === 'success') colors = "bg-green-900/80 border-green-500";
+            if (type === 'error') colors = "bg-red-900/80 border-red-500";
+            if (type === 'warning') colors = "bg-yellow-900/80 border-yellow-500";
+
+            toast.className = `p-3 rounded-lg border text-white text-sm shadow-lg mb-2 w-full toast-enter ${colors}`;
+            toast.innerText = msg;
+
+            container.appendChild(toast);
+
+            // Animate in
+            requestAnimationFrame(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-enter-active');
+            });
+
+            // Remove after 3s
+            setTimeout(() => {
+                toast.classList.remove('toast-enter-active');
+                toast.classList.add('toast-exit-active');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- Core Animation Loop ---
+        function animate() {
+            if (petGroup) {
+                petGroup.rotation.y += 0.01; // Idle Spin
+            }
+            renderer.render(scene, camera);
+        }
+
+    </script>
+</body>
+
+</html>
