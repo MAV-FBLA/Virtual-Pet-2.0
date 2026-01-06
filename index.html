@@ -144,11 +144,11 @@
                         <h3 class="text-xl font-bold text-white">Cat</h3>
                         <p class="text-xs text-slate-400 mt-1">Independent & Clean</p>
                     </button>
-                    <button onclick="startGame('dragon')"
+                    <button onclick="startGame('rabbit')"
                         class="p-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 transition hover:scale-105 group">
-                        <div class="text-4xl mb-2 group-hover:animate-bounce">🐲</div>
-                        <h3 class="text-xl font-bold text-white">Dragon</h3>
-                        <p class="text-xs text-slate-400 mt-1">Mystical & Strong</p>
+                        <div class="text-4xl mb-2 group-hover:animate-bounce">�</div>
+                        <h3 class="text-xl font-bold text-white">Rabbit</h3>
+                        <p class="text-xs text-slate-400 mt-1">Gentle & Cute</p>
                     </button>
                 </div>
 
@@ -175,12 +175,6 @@
                         </div>
                     </div>
                     <div class="w-24">
-                        <div class="flex justify-between mb-1"><span>Thirst</span><span id="val-thirst">100</span></div>
-                        <div class="stat-bar-container">
-                            <div id="bar-thirst" class="stat-bar-fill bg-blue-400" style="width: 100%"></div>
-                        </div>
-                    </div>
-                    <div class="w-24">
                         <div class="flex justify-between mb-1"><span>Energy</span><span id="val-energy">100</span></div>
                         <div class="stat-bar-container">
                             <div id="bar-energy" class="stat-bar-fill bg-yellow-400" style="width: 100%"></div>
@@ -194,9 +188,10 @@
                         </div>
                     </div>
                     <div class="w-24">
-                        <div class="flex justify-between mb-1"><span>Health</span><span id="val-health">100</span></div>
+                        <div class="flex justify-between mb-1"><span>Happiness</span><span id="val-happiness">100</span>
+                        </div>
                         <div class="stat-bar-container">
-                            <div id="bar-health" class="stat-bar-fill bg-red-500" style="width: 100%"></div>
+                            <div id="bar-happiness" class="stat-bar-fill bg-pink-400" style="width: 100%"></div>
                         </div>
                     </div>
                 </div>
@@ -215,10 +210,6 @@
                                 id="goal-savings">500</span></div>
                     </div>
                     <div class="h-8 w-px bg-slate-600"></div>
-                    <button onclick="toggleInsurance()" id="btn-insurance"
-                        class="text-xs px-3 py-1 rounded border border-slate-500 hover:bg-slate-700 transition">
-                        Insurance: <span id="status-insurance" class="text-red-400 font-bold">OFF</span>
-                    </button>
                 </div>
             </div>
 
@@ -256,21 +247,18 @@
                             class="w-full flex justify-between p-2 hover:bg-slate-700 rounded mb-2 text-slate-200">
                             <span>🍖 Premium Kibble</span> <span class="text-green-400">$15</span>
                         </button>
-                        <button onclick="buyItem('water', 5)"
+                        <button onclick="buyItem('kibble', 15)"
                             class="w-full flex justify-between p-2 hover:bg-slate-700 rounded mb-2 text-slate-200">
-                            <span>💧 Fresh Water</span> <span class="text-green-400">$5</span>
+                            <span>� Premium Kibble</span> <span class="text-green-400">$15</span>
                         </button>
                     </div>
-                    <!-- Health -->
+
+                    <!-- Toys -->
                     <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                        <h3 class="text-lg font-semibold text-red-400 mb-2">Healthcare</h3>
-                        <button onclick="visitVet()"
+                        <h3 class="text-lg font-semibold text-pink-400 mb-2">Toys</h3>
+                        <button onclick="buyItem('ball', 50)"
                             class="w-full flex justify-between p-2 hover:bg-slate-700 rounded mb-2 text-slate-200">
-                            <span>🏥 Vet Visit</span> <span class="text-green-400" id="vet-cost-display">$100</span>
-                        </button>
-                        <button onclick="buyItem('medicine', 40)"
-                            class="w-full flex justify-between p-2 hover:bg-slate-700 rounded mb-2 text-slate-200">
-                            <span>💊 Vitamins</span> <span class="text-green-400">$40</span>
+                            <span>⚽ Bouncy Ball</span> <span class="text-green-400">$50</span>
                         </button>
                     </div>
                     <!-- Savings -->
@@ -297,25 +285,16 @@
                     class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl">&times;</button>
                 <h2 class="text-2xl font-bold text-white mb-6">❄️ Fridge</h2>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4">
                     <!-- Food Stock -->
                     <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 text-center">
                         <div class="text-4xl mb-2">🍖</div>
                         <h3 class="text-xl font-bold text-white mb-1">Food</h3>
                         <p class="text-slate-400 mb-4">Stock: <span id="stock-food"
-                                class="text-white font-bold">0</span></p>
+                                class="text-white font-bold">0</span>
+                        </p>
                         <button onclick="consumeItem('food')"
                             class="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded font-bold">Eat</button>
-                    </div>
-
-                    <!-- Water Stock -->
-                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 text-center">
-                        <div class="text-4xl mb-2">💧</div>
-                        <h3 class="text-xl font-bold text-white mb-1">Water</h3>
-                        <p class="text-slate-400 mb-4">Stock: <span id="stock-water"
-                                class="text-white font-bold">0</span></p>
-                        <button onclick="consumeItem('water')"
-                            class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold">Drink</button>
                     </div>
                 </div>
             </div>
@@ -335,15 +314,10 @@
         const CONFIG = {
             decayRates: {
                 hunger: 0.8,    // per second (faster for demo)
-                thirst: 1.0,
                 energy: 0.5,
                 hygiene: 0.6,
-                health: 0.1     // health decays slowly if other stats are low
+                happiness: 0.5
             },
-            insuranceCost: 20,
-            insuranceInterval: 30000, // 30s
-            vetCost: 100,
-            vetCostInsured: 20,
             savingsGoal: 500,
             salary: 50 // per work session
         };
@@ -351,22 +325,19 @@
         const STATE = {
             money: 200,
             savings: 0,
-            hasInsurance: false,
             petName: "Buddy",
             petType: "dog",
             stats: {
                 hunger: 100,
-                thirst: 100,
                 energy: 100,
                 hygiene: 100,
-                health: 100
+                happiness: 100
             },
             inventory: {
                 food: 0,
-                water: 0,
+                toys: [], // List of unlocked toys
                 hatUnlocked: false
             },
-            isSick: false,
             currentRoom: 'livingroom',
             lastTick: Date.now()
         };
@@ -502,8 +473,8 @@
 
             // --- Room Configs ---
             if (STATE.currentRoom === 'livingroom') {
-                createFurniture(0, 0, -5, 0x1e293b, "Sofa");
-                createComputer(5, 2, -10);
+                createFurniture(13, 0, 0, 0x1e293b, "Sofa", -Math.PI / 2);
+                createComputer(0, 2, -14);
 
                 createDoor(-8, 0, -14.5, 0, 'kitchen', 0xf97316);
                 createDoor(8, 0, -14.5, 0, 'bathroom', 0x3b82f6);
@@ -521,6 +492,11 @@
             } else if (STATE.currentRoom === 'bathroom') {
                 createBathroomFixtures();
                 createDoor(-8, 0, -14.5, 0, 'livingroom', 0x14b8a6, doorFrameColor, doorPanelColor);
+            }
+
+            // Render unlocked toys in Living Room
+            if (STATE.currentRoom === 'livingroom') {
+                renderToys();
             }
 
             scene.add(roomGroup);
@@ -565,38 +541,66 @@
         function createBathroomFixtures() {
             // Bathtub (Interactive)
             const tubGroup = new THREE.Group();
-            tubGroup.position.set(6, 0, -10); // Moved slightly right
+            tubGroup.position.set(6, 0, -10);
 
             const tubMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
             const chromeMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.8, roughness: 0.2 });
 
-            const tubBase = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 3), tubMat);
-            tubBase.position.y = 1.25;
-            tubGroup.add(tubBase);
+            // Hollow Tub Construction (Bottom + 4 Walls)
+            // Bottom
+            const tubBottom = new THREE.Mesh(new THREE.BoxGeometry(6, 0.5, 3), tubMat);
+            tubBottom.position.y = 0.25;
+            tubGroup.add(tubBottom);
 
-            // Water
-            const water = new THREE.Mesh(new THREE.PlaneGeometry(5, 2.5), new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6 }));
-            water.rotation.x = -Math.PI / 2;
-            water.position.y = 2.0;
+            // Front (Long)
+            const wallFront = new THREE.Mesh(new THREE.BoxGeometry(6, 2, 0.2), tubMat);
+            wallFront.position.set(0, 1.5, 1.4);
+            tubGroup.add(wallFront);
+
+            // Back (Long)
+            const wallBack = new THREE.Mesh(new THREE.BoxGeometry(6, 2, 0.2), tubMat);
+            wallBack.position.set(0, 1.5, -1.4);
+            tubGroup.add(wallBack);
+
+            // Left (Short)
+            const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2, 2.6), tubMat);
+            wallLeft.position.set(-2.9, 1.5, 0);
+            tubGroup.add(wallLeft);
+
+            // Right (Short)
+            const wallRight = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2, 2.6), tubMat);
+            wallRight.position.set(2.9, 1.5, 0);
+            tubGroup.add(wallRight);
+
+            // Water (Inside)
+            const water = new THREE.Mesh(new THREE.BoxGeometry(5.6, 1.5, 2.6), new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6 }));
+            water.position.set(0, 1.0, 0); // Fill up to just below rim
             tubGroup.add(water);
 
-            // Tub Faucet
-            const tFaucetV = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1), chromeMat);
-            tFaucetV.position.set(0, 3, -1.5);
+            // Tub Faucet (Fixed Glitch)
+            // Vertical pipe rising from floor/back
+            const tFaucetV = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.5), chromeMat);
+            tFaucetV.position.set(0, 1.25, -1.6); // Behind back wall
             tubGroup.add(tFaucetV);
-            const tFaucetH = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.5), chromeMat);
-            tFaucetH.position.set(0, 3.5, -1.3);
-            tFaucetH.rotation.x = Math.PI / 2; // Pointing forward
+            // Horizontal spout
+            const tFaucetH = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.8), chromeMat);
+            tFaucetH.position.set(0, 2.5, -1.2); // Overhanging tub
+            tFaucetH.rotation.x = Math.PI / 2;
             tubGroup.add(tFaucetH);
+            // Spout tip (downward)
+            const tFaucetTip = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.3), chromeMat);
+            tFaucetTip.position.set(0, 2.5, -0.8);
+            tubGroup.add(tFaucetTip);
+
 
             tubGroup.userData = { type: 'interactable', action: 'cleanPet' };
-            // Add clearer hitbox
+            // Hitbox
             const tubHit = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 3), new THREE.MeshBasicMaterial({ visible: false }));
             tubHit.position.y = 1.5;
             tubGroup.add(tubHit);
             roomGroup.add(tubGroup);
 
-            // Toilet (Moved to corner, away from door)
+            // Toilet
             const toiletGroup = new THREE.Group();
             toiletGroup.position.set(-13, 0, -14);
             const tBase = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 2), tubMat);
@@ -617,14 +621,21 @@
             sBasin.position.y = 3;
             sinkGroup.add(sBasin);
 
-            // Sink Faucet
+            // Sink Faucet (Fixed Glitch)
+            // Vertical part attached to basin
             const sFaucetV = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5), chromeMat);
-            sFaucetV.position.set(0, 3.4, -0.6);
+            sFaucetV.position.set(0, 3.25, -0.6); // Lowered to touch basin
             sinkGroup.add(sFaucetV);
+            // Horizontal part
             const sFaucetH = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5), chromeMat);
-            sFaucetH.position.set(0, 3.6, -0.4);
+            sFaucetH.position.set(0, 3.5, -0.4);
             sFaucetH.rotation.x = Math.PI / 2;
             sinkGroup.add(sFaucetH);
+            // Tip down
+            const sTip = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.2), chromeMat);
+            sTip.position.set(0, 3.4, -0.15);
+            sinkGroup.add(sTip);
+
 
             // Mirror
             const mirror = new THREE.Mesh(new THREE.PlaneGeometry(2, 3), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.1 }));
@@ -634,15 +645,56 @@
             roomGroup.add(sinkGroup);
         }
 
-        function createFurniture(x, y, z, color, type) {
-            const geo = new THREE.BoxGeometry(4, 2, 2);
-            const mat = new THREE.MeshStandardMaterial({ color: color });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(x, 1, z); // simplified y
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            mesh.userData = { type: 'furniture', name: type };
-            roomGroup.add(mesh);
+
+
+        function createFurniture(x, y, z, color, type, rotationY = 0) {
+            const group = new THREE.Group();
+            group.position.set(x, 0, z);
+            group.rotation.y = rotationY;
+
+            if (type === "Sofa") {
+                const mat = new THREE.MeshStandardMaterial({ color: color });
+
+                // Seat
+                const seat = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 2), mat);
+                seat.position.y = 0.5;
+                seat.castShadow = true;
+                seat.receiveShadow = true;
+                group.add(seat);
+
+                // Backrest
+                const back = new THREE.Mesh(new THREE.BoxGeometry(4, 2.5, 0.5), mat);
+                back.position.set(0, 1.25, -0.75);
+                back.castShadow = true;
+                back.receiveShadow = true;
+                group.add(back);
+
+                // Armrests
+                const armGeo = new THREE.BoxGeometry(0.5, 1.5, 2);
+                const armL = new THREE.Mesh(armGeo, mat);
+                armL.position.set(-1.75, 0.75, 0);
+                armL.castShadow = true;
+                armL.receiveShadow = true;
+                group.add(armL);
+
+                const armR = new THREE.Mesh(armGeo, mat);
+                armR.position.set(1.75, 0.75, 0);
+                armR.castShadow = true;
+                armR.receiveShadow = true;
+                group.add(armR);
+
+            } else {
+                const geo = new THREE.BoxGeometry(4, 2, 2);
+                const mat = new THREE.MeshStandardMaterial({ color: color });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.y = 1;
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                group.add(mesh);
+            }
+
+            group.userData = { type: 'furniture', name: type };
+            roomGroup.add(group);
         }
 
         function createBedroomFixtures() {
@@ -860,11 +912,27 @@
             roomGroup.add(group);
         }
 
+
+        function renderToys() {
+            if (STATE.inventory.toys.includes('ball')) {
+                const ballGeo = new THREE.SphereGeometry(1, 32, 32);
+                const ballMat = new THREE.MeshStandardMaterial({ color: 0xff4757 });
+                const ball = new THREE.Mesh(ballGeo, ballMat);
+                // Foreground position
+                ball.position.set(5, 1, 8);
+                ball.castShadow = true;
+                ball.receiveShadow = true;
+
+                ball.userData = { type: 'interactable', action: 'playWithToy' };
+                roomGroup.add(ball);
+            }
+        }
+
         function buildPet() {
             if (petGroup) scene.remove(petGroup);
             petGroup = new THREE.Group();
 
-            const mainColor = STATE.petType === 'dog' ? 0xd97706 : (STATE.petType === 'cat' ? 0x94a3b8 : 0x10b981);
+            const mainColor = STATE.petType === 'dog' ? 0xd97706 : (STATE.petType === 'cat' ? 0x94a3b8 : 0xe2e8f0);
             const secondaryColor = 0xffffff; // White accents
 
             const matInfo = {
@@ -873,12 +941,13 @@
                 dark: new THREE.MeshStandardMaterial({ color: 0x1e293b }) // Eyes/Nose
             };
 
-            if (STATE.petType === 'dog' || STATE.petType === 'cat') {
+            if (STATE.petType === 'dog' || STATE.petType === 'cat' || STATE.petType === 'rabbit') {
                 // --- QUADRUPED BUILD ---
 
                 // Body
-                const bodyMsg = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1, 1.8), matInfo.body);
-                bodyMsg.position.y = 1;
+                const bodyScale = STATE.petType === 'rabbit' ? 0.7 : 1;
+                const bodyMsg = new THREE.Mesh(new THREE.BoxGeometry(1.2 * bodyScale, 1 * bodyScale, 1.8 * bodyScale), matInfo.body);
+                bodyMsg.position.y = 1 * bodyScale;
                 bodyMsg.castShadow = true;
                 petGroup.add(bodyMsg);
 
@@ -890,9 +959,9 @@
                 const headMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), matInfo.body);
                 headGroup.add(headMesh);
 
-                // Snout (Dog vs Cat diff)
+                // Snout (Dog vs Cat vs Rabbit diff)
                 const snoutLen = STATE.petType === 'dog' ? 0.6 : 0.2;
-                const snoutMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, snoutLen), matInfo.accent);
+                const snoutMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6 * (STATE.petType === 'rabbit' ? 0.8 : 1), 0.4, snoutLen), matInfo.accent);
                 snoutMesh.position.set(0, -0.1, 0.5 + snoutLen / 2);
                 headGroup.add(snoutMesh);
 
@@ -902,15 +971,33 @@
                 headGroup.add(noseMesh);
 
                 // Ears
-                const earGeo = new THREE.ConeGeometry(0.2, 0.4, 4);
+                let earGeo, earPosL, earPosR, earRotL, earRotR;
+
+                if (STATE.petType === 'rabbit') {
+                    // Long vertical ears
+                    earGeo = new THREE.BoxGeometry(0.2, 1.2, 0.1);
+                    earPosL = new THREE.Vector3(-0.25, 1.0, 0);
+                    earPosR = new THREE.Vector3(0.25, 1.0, 0);
+                    earRotL = { x: 0, z: -0.1 };
+                    earRotR = { x: 0, z: 0.1 };
+                } else {
+                    // Triangle Ears
+                    earGeo = new THREE.ConeGeometry(0.2, 0.4, 4);
+                    earPosL = new THREE.Vector3(-0.35, 0.6, 0);
+                    earPosR = new THREE.Vector3(0.35, 0.6, 0);
+                    earRotL = { x: -0.2, z: 0.2 };
+                    earRotR = { x: -0.2, z: -0.2 };
+                }
+
                 const earL = new THREE.Mesh(earGeo, matInfo.body);
-                earL.position.set(-0.35, 0.6, 0);
-                earL.rotation.x = -0.2;
-                earL.rotation.z = 0.2;
+                earL.position.copy(earPosL);
+                earL.rotation.x = earRotL.x;
+                earL.rotation.z = earRotL.z;
                 const earR = new THREE.Mesh(earGeo, matInfo.body);
-                earR.position.set(0.35, 0.6, 0);
-                earR.rotation.x = -0.2;
-                earR.rotation.z = -0.2;
+                earR.position.copy(earPosR);
+                earR.rotation.x = earRotR.x;
+                earR.rotation.z = earRotR.z;
+
                 headGroup.add(earL);
                 headGroup.add(earR);
 
@@ -941,36 +1028,21 @@
                 });
 
                 // Tail
-                const tailGeo = new THREE.BoxGeometry(0.2, 0.2, 0.8);
+                let tailGeo;
+                if (STATE.petType === 'rabbit') {
+                    tailGeo = new THREE.SphereGeometry(0.25); // Puffy tail
+                } else {
+                    tailGeo = new THREE.BoxGeometry(0.2, 0.2, 0.8);
+                }
                 const tail = new THREE.Mesh(tailGeo, matInfo.body);
-                tail.position.set(0, 1.4, -1);
-                tail.rotation.x = 0.5;
+                tail.position.set(0, 1.4 * bodyScale, -0.9 * bodyScale); // Adjust for scale
+                if (STATE.petType !== 'rabbit') tail.rotation.x = 0.5;
                 petGroup.add(tail);
 
                 // Store head for animation usually, but we rotate whole group for now
-
-            } else if (STATE.petType === 'dragon') {
-                // Simple Dragon Logic
-                const bodyMsg = new THREE.Mesh(new THREE.ConeGeometry(1, 2, 8), matInfo.body);
-                bodyMsg.position.y = 1;
-                petGroup.add(bodyMsg);
-
-                const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 1.2), matInfo.body);
-                headMesh.position.set(0, 2, 0.5);
-                petGroup.add(headMesh);
-
-                // Wings
-                const wingGeo = new THREE.ConeGeometry(0.8, 0.2, 3);
-                const wingL = new THREE.Mesh(wingGeo, matInfo.accent);
-                wingL.position.set(-0.8, 1.5, 0);
-                wingL.rotation.z = 0.5;
-                petGroup.add(wingL);
-
-                const wingR = new THREE.Mesh(wingGeo, matInfo.accent);
-                wingR.position.set(0.8, 1.5, 0);
-                wingR.rotation.z = -0.5;
-                petGroup.add(wingR);
             }
+
+
 
             // Hat (Unlockable) - Re-attach
             if (STATE.inventory.hatUnlocked) {
@@ -978,9 +1050,17 @@
                 const hatMat = new THREE.MeshStandardMaterial({ color: 0xfacc15 });
                 hatMesh = new THREE.Mesh(hatGeo, hatMat);
                 // Adjust position based on new head
-                hatMesh.position.set(0, STATE.petType === 'dragon' ? 2.6 : 2.5, STATE.petType === 'dragon' ? 0.5 : 0.8);
+                hatMesh.position.set(0, 2.5, 0.8);
                 petGroup.add(hatMesh);
             }
+
+            // Make the entire pet group interactable for "Playing" - REMOVED per request
+            // petGroup.userData = { type: 'interactable', action: 'playWithPet' };
+
+            // Start hitbox for pet
+            const petHit = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 2), new THREE.MeshBasicMaterial({ visible: false }));
+            petHit.position.y = 1.5;
+            petGroup.add(petHit);
 
             scene.add(petGroup);
 
@@ -990,28 +1070,10 @@
         function initGameLoop() {
             // Stat Decay Loop
             setInterval(() => {
-                if (STATE.stats.health <= 0) return; // Game over or paused state usually
-
                 decayStats();
-                checkHealth();
                 updateUI();
                 updatePetBehavior();
             }, 1000);
-
-            // Insurance Payment Loop
-            setInterval(() => {
-                if (STATE.hasInsurance) {
-                    if (STATE.money >= CONFIG.insuranceCost) {
-                        STATE.money -= CONFIG.insuranceCost;
-                        showNotification(`Insurance premium paid: -$${CONFIG.insuranceCost}`, "info");
-                        updateUI();
-                    } else {
-                        STATE.hasInsurance = false;
-                        showNotification("Insurance cancelled due to lack of funds!", "error");
-                        updateUI();
-                    }
-                }
-            }, CONFIG.insuranceInterval);
 
             // Rendering Loop
             renderer.setAnimationLoop(animate);
@@ -1020,45 +1082,27 @@
         function decayStats() {
             // Base decay
             STATE.stats.hunger = Math.max(0, STATE.stats.hunger - CONFIG.decayRates.hunger);
-            STATE.stats.thirst = Math.max(0, STATE.stats.thirst - CONFIG.decayRates.thirst);
             STATE.stats.energy = Math.max(0, STATE.stats.energy - CONFIG.decayRates.energy);
             STATE.stats.hygiene = Math.max(0, STATE.stats.hygiene - CONFIG.decayRates.hygiene);
 
             // Warning Notifications (Random chance to avoid spam)
             if (STATE.stats.hunger < 20 && Math.random() < 0.1) showNotification(`${STATE.petName} is hungry!`, "warning");
-            if (STATE.stats.thirst < 20 && Math.random() < 0.1) showNotification(`${STATE.petName} is thirsty!`, "warning");
             if (STATE.stats.energy < 20 && Math.random() < 0.1) showNotification(`${STATE.petName} is tired!`, "warning");
 
-            // Health decay if needs are not met
-            if (STATE.stats.hunger < 10 || STATE.stats.thirst < 10) {
-                STATE.stats.health = Math.max(0, STATE.stats.health - 2);
-            }
-            // Sickness chance based on hygiene
-            if (STATE.stats.hygiene < 30 && !STATE.isSick) {
-                if (Math.random() < 0.05) { // 5% chance per second if dirty
-                    STATE.isSick = true;
-                    showNotification(`${STATE.petName} has fallen sick! Visit the Vet!`, "error");
-                }
-            }
+            // Happiness decay
+            let happinessDecay = CONFIG.decayRates.happiness;
+            if (STATE.stats.hunger < 40) happinessDecay *= 1.5;
+            if (STATE.stats.hygiene < 40) happinessDecay *= 1.2;
 
-            if (STATE.isSick) {
-                STATE.stats.health = Math.max(0, STATE.stats.health - 1);
-            }
+            STATE.stats.happiness = Math.max(0, STATE.stats.happiness - happinessDecay);
         }
 
-        function checkHealth() {
-            if (STATE.stats.health < 20) {
-                showNotification("Health Critical!", "error");
-            }
-        }
+
 
         function updateUI() {
             // Update Stat Bars
             document.getElementById('val-hunger').innerText = Math.floor(STATE.stats.hunger);
             document.getElementById('bar-hunger').style.width = `${STATE.stats.hunger}%`;
-
-            document.getElementById('val-thirst').innerText = Math.floor(STATE.stats.thirst);
-            document.getElementById('bar-thirst').style.width = `${STATE.stats.thirst}%`;
 
             document.getElementById('val-energy').innerText = Math.floor(STATE.stats.energy);
             document.getElementById('bar-energy').style.width = `${STATE.stats.energy}%`;
@@ -1066,21 +1110,12 @@
             document.getElementById('val-hygiene').innerText = Math.floor(STATE.stats.hygiene);
             document.getElementById('bar-hygiene').style.width = `${STATE.stats.hygiene}%`;
 
-            document.getElementById('val-health').innerText = Math.floor(STATE.stats.health);
-            document.getElementById('bar-health').style.width = `${STATE.stats.health}%`;
+            document.getElementById('val-happiness').innerText = Math.floor(STATE.stats.happiness);
+            document.getElementById('bar-happiness').style.width = `${STATE.stats.happiness}%`;
 
             // Money & Savings
             document.getElementById('display-money').innerText = STATE.money;
             document.getElementById('display-savings').innerText = STATE.savings;
-
-            // Insurance Status
-            const insEl = document.getElementById('status-insurance');
-            insEl.innerText = STATE.hasInsurance ? "ON" : "OFF";
-            insEl.className = STATE.hasInsurance ? "text-green-400 font-bold" : "text-red-400 font-bold";
-
-            // Vet Cost
-            const vcost = STATE.hasInsurance ? CONFIG.vetCostInsured : CONFIG.vetCost;
-            document.getElementById('vet-cost-display').innerText = `$${vcost}`;
         }
 
         function updatePetBehavior() {
@@ -1088,16 +1123,16 @@
             let emotion = "Happy";
             let emoji = "😊";
 
-            if (STATE.isSick) {
-                emotion = "Sick"; emoji = "🤢";
-            } else if (STATE.stats.health < 30) {
-                emotion = "Weak"; emoji = "🤕";
-            } else if (STATE.stats.hunger < 30) {
+            if (STATE.stats.hunger < 30) {
                 emotion = "Hungry"; emoji = "🤤";
             } else if (STATE.stats.energy < 20) {
                 emotion = "Sleepy"; emoji = "😴";
-            } else if (STATE.stats.energy > 80) {
+            } else if (STATE.stats.happiness < 30) {
+                emotion = "Sad"; emoji = "😢";
+            } else if (STATE.stats.happiness > 80 && STATE.stats.energy > 50) {
                 emotion = "Excited"; emoji = "🤩";
+            } else if (STATE.stats.energy > 80) {
+                emotion = "Happy"; emoji = "😊";
             }
 
             document.getElementById('pet-emoji').innerText = emoji;
@@ -1114,8 +1149,6 @@
                     petGroup.position.y = Math.abs(Math.sin(Date.now() / 200)) * 0.5; // Jump
                 } else if (emotion === "Sleepy") {
                     petGroup.rotation.z = Math.PI / 4; // Lay down
-                } else if (emotion === "Sick" || emotion === "Weak") {
-                    petGroup.position.x = Math.sin(Date.now() / 50) * 0.1; // Shiver
                 }
             }
         }
@@ -1184,6 +1217,29 @@
                     setTimeout(() => { if (petGroup) petGroup.rotation.z = 0; }, 2000);
                 }
             }
+            if (action === 'playWithToy') {
+                if (STATE.stats.energy < 10) {
+                    showNotification(`${STATE.petName} is too tired to play!`, "warning");
+                    return;
+                }
+                STATE.stats.happiness = Math.min(100, STATE.stats.happiness + 20); // More happiness for toys
+                STATE.stats.energy = Math.max(0, STATE.stats.energy - 10);
+                showNotification(`Played with Toy! Happiness +20`, "success");
+                updateUI();
+
+                // Jump Animation
+                if (petGroup) {
+                    let jumpHeight = 0;
+                    const jumpInt = setInterval(() => {
+                        jumpHeight += 0.2;
+                        petGroup.position.y = Math.sin(jumpHeight) * 1.5;
+                        if (jumpHeight > Math.PI) {
+                            clearInterval(jumpInt);
+                            petGroup.position.y = 0;
+                        }
+                    }, 50);
+                }
+            }
 
         }
 
@@ -1203,21 +1259,20 @@
                 showNotification("Too tired to work!", "warning");
                 return;
             }
+            if (STATE.stats.happiness < 10) {
+                showNotification("Too depressed to work...", "error");
+                return;
+            }
             STATE.money += CONFIG.salary;
             STATE.stats.energy -= 15;
             STATE.stats.hunger -= 10;
+            STATE.stats.happiness -= 10; // Work is boring
             updateUI();
-            showNotification(`Worked hard! Earned $${CONFIG.salary}`, "success");
+            showNotification(`Worked hard! Earned $${CONFIG.salary}. Happiness -10`, "success");
         }
 
         window.closeModal = (id) => {
             document.getElementById(id).classList.add('hidden');
-        };
-
-        window.toggleInsurance = () => {
-            STATE.hasInsurance = !STATE.hasInsurance;
-            updateUI();
-            showNotification(`Insurance ${STATE.hasInsurance ? 'Activated' : 'Cancelled'}`, "info");
         };
 
         window.buyItem = (item, cost) => {
@@ -1228,16 +1283,18 @@
                 if (item === 'kibble') {
                     STATE.inventory.food = (STATE.inventory.food || 0) + 1;
                     showNotification(`Bought Kibble! Stock: ${STATE.inventory.food}`, "success");
+                    showNotification(`Bought Kibble! Stock: ${STATE.inventory.food}`, "success");
                 }
-                if (item === 'water') {
-                    STATE.inventory.water = (STATE.inventory.water || 0) + 1;
-                    showNotification(`Bought Water! Stock: ${STATE.inventory.water}`, "success");
-                }
-
-                // Medicine applies immediately still? Or maybe standard "food" vs "other"
-                if (item === 'medicine') {
-                    STATE.stats.health = Math.min(100, STATE.stats.health + 20);
-                    showNotification(`Applied Medicine!`, "success");
+                else if (item === 'ball') {
+                    if (!STATE.inventory.toys.includes('ball')) {
+                        STATE.inventory.toys.push('ball');
+                        showNotification("Bought Bouncy Ball! Check Living Room.", "success");
+                        // Refresh room if we are in it
+                        if (STATE.currentRoom === 'livingroom') buildRoom();
+                    } else {
+                        STATE.money += cost; // Refund
+                        showNotification("You already have this toy!", "warning");
+                    }
                 }
 
                 updateUI();
@@ -1252,17 +1309,10 @@
                 if (STATE.inventory.food > 0) {
                     STATE.inventory.food--;
                     STATE.stats.hunger = Math.min(100, STATE.stats.hunger + 40);
-                    showNotification("Yum! Hunger -40", "success");
+                    STATE.stats.happiness = Math.min(100, STATE.stats.happiness + 5);
+                    showNotification("Yum! Hunger -40, Happiness +5", "success");
                 } else {
                     showNotification("No food in fridge!", "error");
-                }
-            } else if (type === 'water') {
-                if (STATE.inventory.water > 0) {
-                    STATE.inventory.water--;
-                    STATE.stats.thirst = Math.min(100, STATE.stats.thirst + 40);
-                    showNotification("Slurp! Thirst -40", "success");
-                } else {
-                    showNotification("No water in fridge!", "error");
                 }
             }
             updateUI();
@@ -1271,21 +1321,7 @@
 
         function updateFridgeUI() {
             document.getElementById('stock-food').innerText = STATE.inventory.food || 0;
-            document.getElementById('stock-water').innerText = STATE.inventory.water || 0;
         }
-
-        window.visitVet = () => {
-            const cost = STATE.hasInsurance ? CONFIG.vetCostInsured : CONFIG.vetCost;
-            if (STATE.money >= cost) {
-                STATE.money -= cost;
-                STATE.isSick = false;
-                STATE.stats.health = 100;
-                showNotification("Pet fully healed!", "success");
-                updateUI();
-            } else {
-                showNotification("Cannot afford Vet!", "error");
-            }
-        };
 
         window.depositSavings = () => {
             const el = document.getElementById('deposit-amount');
