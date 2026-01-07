@@ -480,6 +480,14 @@
                 createDoor(8, 0, -14.5, 0, 'bathroom', 0x3b82f6);
                 createDoor(-14.5, 0, 0, Math.PI / 2, 'bedroom', 0x8b5cf6);
 
+                // Add Windows for personality
+                // Back wall (Sides)
+                createWindow(-12.5, 6, -14.4, 0, 2.5, 3.5);
+                createWindow(12.5, 6, -14.4, 0, 2.5, 3.5);
+
+                // Right wall (Above Sofa - Wide Window)
+                createWindow(14.4, 5, 0, -Math.PI / 2, 8, 3.5);
+
             } else if (STATE.currentRoom === 'kitchen') {
                 createKitchenFixtures();
                 createDoor(0, 0, -14.5, 0, 'livingroom', 0x14b8a6);
@@ -487,7 +495,7 @@
 
             } else if (STATE.currentRoom === 'bedroom') {
                 createBedroomFixtures();
-                createDoor(12, 0, 0, -Math.PI / 2, 'livingroom', 0x14b8a6, 0xffffff, 0xcbd5e1); // Moved slightly in and brighter colors for visibility
+                createDoor(14.5, 0, -4, -Math.PI / 2, 'livingroom', 0x14b8a6); // Positioned against the right wall
 
             } else if (STATE.currentRoom === 'bathroom') {
                 createBathroomFixtures();
@@ -536,6 +544,49 @@
             doorGroup.add(hitBox);
 
             roomGroup.add(doorGroup);
+        }
+
+        function createWindow(x, y, z, rotationY, width = 3, height = 4) {
+            const winGroup = new THREE.Group();
+            winGroup.position.set(x, y, z);
+            winGroup.rotation.y = rotationY;
+
+            // Frame (Outer)
+            const frameGeo = new THREE.BoxGeometry(width + 0.4, height + 0.4, 0.2);
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            const frame = new THREE.Mesh(frameGeo, frameMat);
+            winGroup.add(frame);
+
+            // "Sky" Background (emissive to look bright)
+            const skyGeo = new THREE.PlaneGeometry(width, height);
+            const skyMat = new THREE.MeshBasicMaterial({ color: 0x87ceeb }); // Sky Blue
+            const sky = new THREE.Mesh(skyGeo, skyMat);
+            sky.position.z = 0.11;
+            winGroup.add(sky);
+
+            // Glass Reflection
+            const glassGeo = new THREE.PlaneGeometry(width, height);
+            const glassMat = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.2,
+                roughness: 0,
+                metalness: 0.9
+            });
+            const glass = new THREE.Mesh(glassGeo, glassMat);
+            glass.position.z = 0.12;
+            winGroup.add(glass);
+
+            // Crossbars
+            const barV = new THREE.Mesh(new THREE.BoxGeometry(0.2, height, 0.1), frameMat);
+            barV.position.z = 0.13;
+            winGroup.add(barV);
+
+            const barH = new THREE.Mesh(new THREE.BoxGeometry(width, 0.2, 0.1), frameMat);
+            barH.position.z = 0.13;
+            winGroup.add(barH);
+
+            roomGroup.add(winGroup);
         }
 
         function createBathroomFixtures() {
