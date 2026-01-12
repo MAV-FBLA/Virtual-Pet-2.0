@@ -94,7 +94,7 @@
                 </div>
 
                 <!-- Financial Panel & Clock -->
-                <div class="fixed top-6 right-6 flex gap-4">
+                <div class="fixed top-6 right-6 flex gap-4 items-center">
                     <div class="glass-panel px-6 py-3 rounded-2xl">
                         <div class="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">Time</div>
                         <div id="display-time" class="text-2xl font-bold text-sky-400">08:00 AM</div>
@@ -110,6 +110,13 @@
                                 id="goal-savings">200</span></div>
                     </div>
                     <div class="h-8 w-px bg-slate-600"></div>
+
+                    <!-- Help Button -->
+                    <button onclick="document.getElementById('modal-help').classList.remove('hidden')"
+                        class="glass-panel w-12 h-12 flex items-center justify-center rounded-full hover:bg-slate-700 transition text-slate-300 hover:text-white border-slate-500 hover:border-teal-400"
+                        title="How to Play">
+                        <span class="text-2xl font-bold">?</span>
+                    </button>
                 </div>
             </div>
 
@@ -160,9 +167,9 @@
                             class="w-full flex justify-between p-2 hover:bg-slate-700 rounded mb-2 text-slate-200">
                             <span>🍖 Premium Kibble</span> <span class="text-green-400">$15</span>
                         </button>
-                        <button onclick="buyItem('kibble', 15)"
+                        <button onclick="buyItem('elixir', 50)"
                             class="w-full flex justify-between p-2 hover:bg-slate-700 rounded mb-2 text-slate-200">
-                            <span>🧪 Energy Elixir</span> <span class="text-green-400">$15</span>
+                            <span>⚡ Energy Drink</span> <span class="text-green-400">$50</span>
                         </button>
                     </div>
 
@@ -174,18 +181,7 @@
                             <span>⚽ Bouncy Ball</span> <span class="text-green-400">$50</span>
                         </button>
                     </div>
-                    <!-- Savings -->
-                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                        <h3 class="text-lg font-semibold text-blue-400 mb-2">Finance</h3>
-                        <div class="flex gap-2 mb-2">
-                            <input id="deposit-amount" type="number"
-                                class="w-full bg-slate-900 border border-slate-600 rounded p-1 text-white"
-                                placeholder="Amount">
-                            <button onclick="depositSavings()"
-                                class="px-3 bg-blue-600 hover:bg-blue-500 text-white rounded">Dep</button>
-                        </div>
-                        <p class="text-xs text-slate-400">Goal Reward: Special Hat Accessory 🎩</p>
-                    </div>
+                    <!-- ... -->
                 </div>
 
                 <!-- Financial Report Section -->
@@ -228,18 +224,71 @@
                     class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl">&times;</button>
                 <h2 class="text-2xl font-bold text-white mb-6">❄️ Fridge</h2>
 
-                <div class="grid grid-cols-1 gap-4">
+                <div class="grid grid-cols-2 gap-4">
                     <!-- Food Stock -->
                     <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 text-center">
                         <div class="text-4xl mb-2">🍖</div>
-                        <h3 class="text-xl font-bold text-white mb-1">Food</h3>
+                        <h3 class="text-xl font-bold text-white mb-1">Kibble</h3>
                         <p class="text-slate-400 mb-4">Stock: <span id="stock-food"
                                 class="text-white font-bold">0</span>
                         </p>
                         <button onclick="consumeItem('food')"
                             class="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded font-bold">Eat</button>
                     </div>
+                    <!-- Elixir Stock -->
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 text-center">
+                        <div class="text-4xl mb-2">⚡</div>
+                        <h3 class="text-xl font-bold text-white mb-1">Energy Drink</h3>
+                        <p class="text-slate-400 mb-4">Stock: <span id="stock-elixir"
+                                class="text-white font-bold">0</span>
+                        </p>
+                        <button onclick="consumeItem('elixir')"
+                            class="w-full py-2 bg-teal-600 hover:bg-teal-500 text-white rounded font-bold">Drink</button>
+                    </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Help Modal -->
+        <div id="modal-help"
+            class="hidden absolute inset-0 z-50 flex items-center justify-center bg-black/80 interactable">
+            <div
+                class="glass-panel w-full max-w-2xl p-8 rounded-2xl relative max-h-[80vh] overflow-y-auto custom-scrollbar">
+                <button onclick="closeModal('modal-help')"
+                    class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl">&times;</button>
+                <h2 class="text-3xl font-bold text-teal-400 mb-6 text-center">How to Play</h2>
+
+                <div class="space-y-6 text-slate-200">
+                    <section>
+                        <h3 class="text-xl font-bold text-white mb-2">🎯 Objective</h3>
+                        <p>Care for your pet by maintaining their 4 stats: <span class="text-orange-400">Hunger</span>,
+                            <span class="text-yellow-400">Energy</span>, <span class="text-purple-400">Hygiene</span>,
+                            and <span class="text-pink-400">Happiness</span>. If any stat hits 0, it's Game Over!</p>
+                    </section>
+
+                    <section>
+                        <h3 class="text-xl font-bold text-white mb-2">💰 Earning Money</h3>
+                        <p>Look around the house for <span class="text-green-400">Chores</span> (Sparkles, Trash, Dirt).
+                            Click on them to clean and earn cash. Complete Global chores (like Windows) in all rooms for
+                            a big bonus!</p>
+                    </section>
+
+                    <section>
+                        <h3 class="text-xl font-bold text-white mb-2">🛒 Spending</h3>
+                        <p>Use the <span class="text-blue-400">Computer</span> in the Living Room to access the
+                            Marketplace. Buy food, toys, and education upgrades.</p>
+                    </section>
+
+                    <section>
+                        <h3 class="text-xl font-bold text-white mb-2">💤 Sleeping</h3>
+                        <p>Click the Bed in the <span class="text-purple-400">Bedroom</span> to sleep. You can only
+                            sleep at night (10 PM - 6 AM). Sleeping restores Energy and advances to the next day.</p>
+                    </section>
+                </div>
+
+                <button onclick="closeModal('modal-help')"
+                    class="mt-8 w-full py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl transition">Got
+                    it!</button>
             </div>
         </div>
 
