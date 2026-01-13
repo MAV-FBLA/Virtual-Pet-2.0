@@ -160,10 +160,10 @@
 
 
         <div id="modal-marketplace"
-            class="hidden absolute inset-0 z-40 flex items-center justify-center bg-black/60 interactable">
+            class="hidden absolute inset-0 z-40 flex items-center justify-center bg-black/60 interactable prevent-click-through">
             <div class="glass-panel w-full max-w-3xl p-6 rounded-2xl relative">
                 <button onclick="closeModal('modal-marketplace')"
-                    class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl">&times;</button>
+                    class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl prevent-click-through">&times;</button>
                 <h2 class="text-2xl font-bold text-white mb-6">🛒 Marketplace</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
@@ -243,10 +243,10 @@
 
 
         <div id="modal-fridge"
-            class="hidden absolute inset-0 z-40 flex items-center justify-center bg-black/60 interactable">
+            class="hidden absolute inset-0 z-40 flex items-center justify-center bg-black/60 interactable prevent-click-through">
             <div class="glass-panel w-full max-w-lg p-6 rounded-2xl relative">
                 <button onclick="closeModal('modal-fridge')"
-                    class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl">&times;</button>
+                    class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl prevent-click-through">&times;</button>
                 <h2 class="text-2xl font-bold text-white mb-6">❄️ Fridge</h2>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -267,11 +267,11 @@
 
 
         <div id="modal-help"
-            class="hidden absolute inset-0 z-50 flex items-center justify-center bg-black/80 interactable">
+            class="hidden absolute inset-0 z-50 flex items-center justify-center bg-black/80 interactable prevent-click-through">
             <div
                 class="glass-panel w-full max-w-2xl p-8 rounded-2xl relative max-h-[80vh] overflow-y-auto custom-scrollbar">
                 <button onclick="closeModal('modal-help')"
-                    class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl">&times;</button>
+                    class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl prevent-click-through">&times;</button>
                 <h2 class="text-3xl font-bold text-teal-400 mb-6 text-center">How to Play</h2>
 
                 <div class="space-y-6 text-slate-200">

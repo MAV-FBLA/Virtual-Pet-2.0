@@ -138,6 +138,13 @@ let decayInterval, interestInterval;
 
 // Called from HTML buttons to start the game
 window.startGame = (type) => {
+    // Add Stop Propagation listeners to all prevented elements
+    document.querySelectorAll('.prevent-click-through').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    });
+
     const nameInput = document.getElementById('pet-name-input').value.trim();
 
     if (!nameInput) {
@@ -992,6 +999,8 @@ function updateEnvironment() {
 
 // Handles Raycasting for 3D clicks
 function onMouseClick(event) {
+    if (event.target.tagName !== 'CANVAS') return;
+
     pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
 
