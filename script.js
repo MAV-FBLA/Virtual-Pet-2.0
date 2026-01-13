@@ -12,6 +12,8 @@ const CONFIG = {
 const STATE = {
     money: 200,
     savings: 0,
+    day: 1,
+    lifetimeEarnings: 0,
     petName: "Buddy",
     petType: "dog",
     stats: {
@@ -52,34 +54,34 @@ const CHORE_CONFIG = {
         id: 'dishes',
         name: 'Dish Dynamo',
         reward: 10,
-
         lesson: "Consistent, small-scale labor pays off!",
         room: 'kitchen',
-        count: 5,
+        count: 3,
         actionName: "Scrubbing Dish"
     },
     dusting: {
         id: 'dusting',
         name: 'Dusting the Hub',
         reward: 6,
-
+        room: 'livingroom',
+        count: 3,
         actionName: "Dusting"
     },
     recycling: {
         id: 'recycling',
         name: 'Recycling Sort',
         reward: 14,
-
+        room: 'livingroom',
+        count: 1,
         actionName: "Sorting Recycling"
     },
     floors: {
         id: 'floors',
         name: 'Clean The Floor',
         reward: 120,
-
         lesson: "Large-scale tasks take time but pay better.",
         room: ['livingroom', 'kitchen', 'bedroom', 'bathroom'],
-        count: 4,
+        count: 2,
         global: true,
         actionName: "Polishing Floor"
     },
@@ -87,16 +89,16 @@ const CHORE_CONFIG = {
         id: 'laundry',
         name: 'Laundry Specialist',
         reward: 12,
-
+        room: 'bedroom',
+        count: 3,
         actionName: "Folding Laundry"
     },
     windows: {
         id: 'windows',
         name: 'Crystal Clear Windows',
         reward: 80,
-
         lesson: "Maintaining assets increases their longevity.",
-        room: ['livingroom', 'bedroom'],
+        room: ['livingroom'],
         count: 2,
         global: true,
         actionName: "Cleaning Window"
@@ -105,7 +107,8 @@ const CHORE_CONFIG = {
         id: 'mirror',
         name: 'Mirror Shine',
         reward: 8,
-
+        room: 'bathroom',
+        count: 1,
         actionName: "Wiping Mirror"
     }
 };
@@ -401,7 +404,9 @@ function setupChores(room) {
             { x: 12.5, y: 5.5, z: -14.3 },
             { x: 11.5, y: 4.5, z: -14.3 }
         ];
-        winPositions.forEach((pos, idx) => {
+
+        // Limit to count
+        winPositions.slice(0, CHORE_CONFIG.windows.count).forEach((pos, idx) => {
             if (isCleaned('windows', idx)) return;
             const grime = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ color: 0x57534e, transparent: true, opacity: 0.7 }));
             grime.position.set(pos.x, pos.y, pos.z);
@@ -413,7 +418,7 @@ function setupChores(room) {
 
     if (room === 'bathroom') {
         const fogPos = [{ x: -0.5, y: 5.5 }, { x: 0.5, y: 5.5 }, { x: -0.5, y: 4.5 }, { x: 0.5, y: 4.5 }];
-        fogPos.forEach((p, i) => {
+        fogPos.slice(0, CHORE_CONFIG.mirror.count).forEach((p, i) => {
             if (isCleaned('mirror', i)) return;
             const fog = new THREE.Mesh(new THREE.CircleGeometry(0.4, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 }));
             fog.position.set(p.x, p.y, -14.8);
@@ -822,6 +827,7 @@ function initGameLoop() {
 
         const nextTime = STATE.gameTime + 15;
         if (nextTime >= 1440) {
+            STATE.day++;
             STATE.chores.progress = {};
 
             const rentCost = 10;
@@ -844,6 +850,7 @@ function initGameLoop() {
         if (STATE.savings > 0) {
             const interest = STATE.savings * 0.02;
             STATE.savings += interest;
+            STATE.lifetimeEarnings += interest;
             showNotification(`Interest Earned: +$${interest.toFixed(2)}`, "success");
             updateUI();
         }
@@ -889,7 +896,19 @@ function gameOver(reason) {
         <div class="text-8xl mb-6">💀</div>
         <h1 class="text-6xl font-bold text-red-500 mb-6 tracking-widest">GAME OVER</h1>
         <p class="text-3xl mb-2">Your pet has passed away.</p>
-        <p class="text-xl text-slate-400 mb-12">Cause of Death: <span class="text-red-400 font-bold uppercase">${reason}</span></p>
+        <p class="text-xl text-slate-400 mb-6">Cause of Death: <span class="text-red-400 font-bold uppercase">${reason}</span></p>
+        
+        <div class="grid grid-cols-2 gap-8 mb-12 max-w-lg mx-auto w-full">
+            <div class="glass-panel p-6 rounded-2xl bg-slate-800/50">
+                <div class="text-sm text-slate-400 uppercase tracking-widest mb-2">Days Survived</div>
+                <div class="text-5xl font-bold text-white">${STATE.day}</div>
+            </div>
+            <div class="glass-panel p-6 rounded-2xl bg-slate-800/50">
+                <div class="text-sm text-slate-400 uppercase tracking-widest mb-2">Total Wealth Collected</div>
+                <div class="text-4xl font-bold text-green-400">$${STATE.lifetimeEarnings.toFixed(2)}</div>
+            </div>
+        </div>
+
         <button onclick="location.reload()" class="px-10 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-2xl transition transform hover:scale-105 shadow-[0_0_30px_rgba(220,38,38,0.5)] pointer-events-auto cursor-pointer">
             Try Again
         </button>
@@ -912,6 +931,8 @@ function updateUI() {
 
     document.getElementById('display-money').innerText = STATE.money.toFixed(2);
     document.getElementById('display-savings').innerText = STATE.savings.toFixed(2);
+    const dayEl = document.getElementById('display-day');
+    if (dayEl) dayEl.innerText = STATE.day;
 
     const hrs = Math.floor(STATE.gameTime / 60);
     const mins = STATE.gameTime % 60;
@@ -1104,6 +1125,7 @@ function handleInteraction(action, object) {
             if (isComplete) {
                 const reward = getChoreReward(baseId);
                 STATE.money += reward;
+                STATE.lifetimeEarnings += reward;
                 showNotification(`Global Task Complete! +$${reward.toFixed(2)}`, "success");
                 showNotification(choreDef.lesson, "info");
             }
@@ -1207,6 +1229,7 @@ function doWork() {
 
     if (STATE.stats.happiness < 10) { showNotification("Too depressed to work...", "error"); return; }
     STATE.money += CONFIG.salary;
+    STATE.lifetimeEarnings += CONFIG.salary;
     STATE.stats.hunger -= 10; STATE.stats.happiness -= 10;
     updateUI(); showNotification(`Worked hard! Earned $${CONFIG.salary}. Happiness -10`, "success");
 }
