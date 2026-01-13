@@ -64,3 +64,21 @@ body {
     opacity: 0;
     transition: all 0.3s ease-in;
 }
+
+#tooltip {
+    position: absolute;
+    background-color: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(45, 212, 191, 0.5);
+    color: #e2e8f0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 100;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    transition: opacity 0.2s ease, transform 0.1s ease;
+    opacity: 0;
+    transform: translate(-50%, -100%);
+    white-space: nowrap;
+}

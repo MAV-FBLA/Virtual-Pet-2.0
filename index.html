@@ -18,6 +18,8 @@
 
     <!-- UI Layer -->
     <div id="ui-layer" class="ui-layer flex flex-col justify-between p-6">
+        <!-- Tooltip -->
+        <div id="tooltip"></div>
 
         <!-- Start Screen -->
         <div id="start-screen"
@@ -107,7 +109,7 @@
                     <div>
                         <div class="text-xs text-slate-400 uppercase tracking-widest">Savings</div>
                         <div class="text-xl font-semibold text-blue-300">$<span id="display-savings">0</span> / <span
-                                id="goal-savings">200</span></div>
+                                id="goal-savings">100</span></div>
                     </div>
                     <div class="h-8 w-px bg-slate-600"></div>
 
@@ -167,10 +169,7 @@
                             class="w-full flex justify-between p-2 hover:bg-slate-700 rounded mb-2 text-slate-200">
                             <span>🍖 Premium Kibble</span> <span class="text-green-400">$15</span>
                         </button>
-                        <button onclick="buyItem('elixir', 50)"
-                            class="w-full flex justify-between p-2 hover:bg-slate-700 rounded mb-2 text-slate-200">
-                            <span>⚡ Energy Drink</span> <span class="text-green-400">$50</span>
-                        </button>
+
                     </div>
 
                     <!-- Toys -->
@@ -197,12 +196,34 @@
                                         class="text-white" id="spend-toys">$0.00</span></li>
                                 <li class="flex justify-between text-slate-300"><span>Education</span> <span
                                         class="text-white" id="spend-education">$0.00</span></li>
+                                <li class="flex justify-between text-slate-300"><span>Rent</span> <span
+                                        class="text-white" id="spend-rent">$0.00</span></li>
+                                <li class="flex justify-between text-slate-300"><span>Utilities</span> <span
+                                        class="text-white" id="spend-utilities">$0.00</span></li>
                                 <li class="flex justify-between text-slate-300"><span>Healthcare</span> <span
                                         class="text-white" id="spend-care">$0.00</span></li>
                             </ul>
                         </div>
                         <div class="bg-slate-900/50 p-4 rounded-xl">
                             <h4 class="text-sm font-bold text-slate-400 mb-2 uppercase">Investments</h4>
+
+                            <!-- Savings Deposit -->
+                            <div class="mb-4 pb-4 border-b border-slate-700">
+                                <label class="text-xs text-slate-400 block mb-1">Savings Goal: $100</label>
+                                <div class="flex gap-2">
+                                    <input type="number" id="deposit-amount" placeholder="Amount"
+                                        class="w-full bg-slate-800 text-white border border-slate-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                                    <button onclick="depositSavings()"
+                                        class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-4 py-2 rounded transition">
+                                        Deposit
+                                    </button>
+                                    <button onclick="withdrawSavings()"
+                                        class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-4 py-2 rounded transition">
+                                        Withdraw
+                                    </button>
+                                </div>
+                            </div>
+
                             <button onclick="buyEducation()"
                                 class="w-full flex justify-between items-center p-2 bg-indigo-600 hover:bg-indigo-500 rounded text-white group">
                                 <span class="group-hover:translate-x-1 transition-transform">🎓 Education Course</span>
@@ -235,16 +256,7 @@
                         <button onclick="consumeItem('food')"
                             class="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded font-bold">Eat</button>
                     </div>
-                    <!-- Elixir Stock -->
-                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 text-center">
-                        <div class="text-4xl mb-2">⚡</div>
-                        <h3 class="text-xl font-bold text-white mb-1">Energy Drink</h3>
-                        <p class="text-slate-400 mb-4">Stock: <span id="stock-elixir"
-                                class="text-white font-bold">0</span>
-                        </p>
-                        <button onclick="consumeItem('elixir')"
-                            class="w-full py-2 bg-teal-600 hover:bg-teal-500 text-white rounded font-bold">Drink</button>
-                    </div>
+
                 </div>
             </div>
         </div>
@@ -263,7 +275,8 @@
                         <h3 class="text-xl font-bold text-white mb-2">🎯 Objective</h3>
                         <p>Care for your pet by maintaining their 4 stats: <span class="text-orange-400">Hunger</span>,
                             <span class="text-yellow-400">Energy</span>, <span class="text-purple-400">Hygiene</span>,
-                            and <span class="text-pink-400">Happiness</span>. If any stat hits 0, it's Game Over!</p>
+                            and <span class="text-pink-400">Happiness</span>. If any stat hits 0, it's Game Over!
+                        </p>
                     </section>
 
                     <section>

@@ -9,7 +9,7 @@ const CONFIG = {
         hygiene: 0.6,   // 0.6 units per second
         happiness: 0.5  // 0.5 units per second
     },
-    savingsGoal: 200,   // Amount needed to reach savings goal
+    savingsGoal: 100,   // Amount needed to reach savings goal
     salary: 50          // Money earned per work session
 };
 
@@ -30,14 +30,20 @@ const STATE = {
         food: 0,
         toys: 0,
         education: 0,
-        care: 0
+        care: 0,
+        rent: 0,
+        utilities: 0
     },
     educationLevel: 0,  // Level of education (increases chore rewards)
     inventory: {        // Items currently owned
         food: 0,        // Amount of food
-        elixir: 0,      // Amount of energy drinks
+
         toys: [],       // Array of unlocked toy IDs
-        hatUnlocked: false // Special status for reaching savings goal
+        hatUnlocked: false, // $100
+        rugUnlocked: false, // $200
+        plantUnlocked: false, // $300
+        paintingUnlocked: false, // $400
+        trophyUnlocked: false // $500
     },
     currentRoom: 'livingroom', // The room the player is currently viewing
     lastTick: Date.now(),      // Timestamp for the last game loop tick
@@ -54,8 +60,8 @@ const CHORE_CONFIG = {
     dishes: {
         id: 'dishes',               // Base ID
         name: 'Dish Dynamo',        // Display Name
-        reward: 5,                  // Cash Reward per interaction
-        energy: 10,                 // Energy Cost per interaction
+        reward: 10,                 // Cash Reward per interaction
+
         lesson: "Consistent, small-scale labor pays off!", // Financial Tip
         room: 'kitchen',            // Room location
         count: 5,                   // Number of instances to spawn
@@ -64,8 +70,8 @@ const CHORE_CONFIG = {
     dusting: {
         id: 'dusting',
         name: 'Dusting the Hub',
-        reward: 3,
-        energy: 5,
+        reward: 6,
+
         lesson: "Low-effort, entry-level work builds savings.",
         room: 'livingroom',
         count: 3,
@@ -74,8 +80,8 @@ const CHORE_CONFIG = {
     recycling: {
         id: 'recycling',
         name: 'Recycling Sort',
-        reward: 7,
-        energy: 12,
+        reward: 14,
+
         lesson: "Sustainability and organization are valuable skills.",
         room: 'livingroom',
         count: 1,
@@ -83,9 +89,9 @@ const CHORE_CONFIG = {
     },
     floors: {
         id: 'floors',
-        name: 'Whole House Floors',
-        reward: 60,
-        energy: 15,
+        name: 'Clean The Floor',
+        reward: 120,
+
         lesson: "Large-scale tasks take time but pay better.",
         room: ['livingroom', 'kitchen', 'bedroom', 'bathroom'], // Multi-room task
         count: 4,                   // Per room
@@ -95,8 +101,8 @@ const CHORE_CONFIG = {
     laundry: {
         id: 'laundry',
         name: 'Laundry Specialist',
-        reward: 6,
-        energy: 10,
+        reward: 12,
+
         lesson: "Cleanliness and order contribute to household value.",
         room: 'bedroom',
         count: 3,
@@ -105,8 +111,8 @@ const CHORE_CONFIG = {
     windows: {
         id: 'windows',
         name: 'Crystal Clear Windows',
-        reward: 40,
-        energy: 12,
+        reward: 80,
+
         lesson: "Maintaining assets increases their longevity.",
         room: ['livingroom', 'bedroom'],
         count: 2,
@@ -116,8 +122,8 @@ const CHORE_CONFIG = {
     mirror: {
         id: 'mirror',
         name: 'Mirror Shine',
-        reward: 4,
-        energy: 5,
+        reward: 8,
+
         lesson: "Attention to detail matters in small tasks.",
         room: 'bathroom',
         count: 4,
@@ -223,6 +229,7 @@ function initThreeJS() {
     raycaster = new THREE.Raycaster();
     pointer = new THREE.Vector2();
     window.addEventListener('click', onMouseClick);
+    window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('resize', onWindowResize);
 
     // Build the Initial World
@@ -800,6 +807,32 @@ function createComputer(x, y, z) {
 
 // Spawns unlocked toys in the Living Room
 function renderToys() {
+    // Render unlocked savings rewards
+    if (STATE.inventory.rugUnlocked) {
+        const rug = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 0.1, 32), new THREE.MeshStandardMaterial({ color: 0xbe185d }));
+        rug.position.set(0, 0.1, 0); rug.receiveShadow = true;
+        roomGroup.add(rug);
+    }
+    if (STATE.inventory.plantUnlocked) {
+        const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.6, 1.5), new THREE.MeshStandardMaterial({ color: 0xd97706 }));
+        pot.position.set(-13, 0.75, 13);
+        const plant = new THREE.Mesh(new THREE.DodecahedronGeometry(1.2), new THREE.MeshStandardMaterial({ color: 0x16a34a }));
+        plant.position.set(0, 1.4, 0); pot.add(plant);
+        roomGroup.add(pot);
+    }
+    if (STATE.inventory.paintingUnlocked) {
+        const artGroup = new THREE.Group(); artGroup.position.set(0, 6, -14.9);
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 0.2), new THREE.MeshStandardMaterial({ color: 0xca8a04 }));
+        const canvas = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 3.5), new THREE.MeshStandardMaterial({ color: 0x3b82f6 })); canvas.position.z = 0.11;
+        artGroup.add(frame); artGroup.add(canvas);
+        roomGroup.add(artGroup);
+    }
+    if (STATE.inventory.trophyUnlocked) {
+        const trophy = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.3, 1.5), new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1, roughness: 0.3 }));
+        trophy.position.set(0, 2.75, -14); // On the computer desk
+        roomGroup.add(trophy);
+    }
+
     if (STATE.inventory.toys.includes('ball')) {
         const ballGeo = new THREE.SphereGeometry(1, 32, 32);
         const ballMat = new THREE.MeshStandardMaterial({ color: 0xff4757 });
@@ -932,6 +965,13 @@ function initGameLoop() {
         if (nextTime >= 1440) {
             // New Day Trigger
             STATE.chores.progress = {};
+
+            // Rent Deduction
+            const rentCost = 10;
+            STATE.money -= rentCost;
+            STATE.spending.rent += rentCost;
+            showNotification(`Rent Paid: -$${rentCost}`, "warning");
+
             showNotification("🌅 A brand new day! Tasks have been reset.", "info");
             buildRoom(); // Respawn chore items in the current room
         }
@@ -1047,6 +1087,8 @@ function updateUI() {
     document.getElementById('spend-toys').innerText = `$${STATE.spending.toys.toFixed(2)}`;
     document.getElementById('spend-education').innerText = `$${STATE.spending.education.toFixed(2)}`;
     document.getElementById('spend-care').innerText = `$${STATE.spending.care.toFixed(2)}`;
+    document.getElementById('spend-rent').innerText = `$${STATE.spending.rent.toFixed(2)}`;
+    document.getElementById('spend-utilities').innerText = `$${STATE.spending.utilities.toFixed(2)}`;
 }
 
 // Determines Pet's current emotion and animates accordingly
@@ -1114,6 +1156,77 @@ function onMouseClick(event) {
     }
 }
 
+// Handles Raycasting for Tooltip (Hover)
+function onMouseMove(event) {
+    const tooltip = document.getElementById('tooltip');
+
+    // Ignore if hovering UI elements (not the 3D Canvas)
+    if (event.target.tagName !== 'CANVAS') {
+        tooltip.style.opacity = 0;
+        document.body.style.cursor = 'default';
+        return;
+    }
+
+    // Normalize coordinates
+    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObjects(scene.children, true);
+
+    let hoveredObj = null;
+
+    if (intersects.length > 0) {
+        let obj = intersects[0].object;
+        while (obj) {
+            if (obj.userData && obj.userData.type === 'interactable') {
+                hoveredObj = obj;
+                break;
+            }
+            obj = obj.parent;
+        }
+    }
+
+    if (hoveredObj) {
+        const text = getTooltipText(hoveredObj.userData);
+        if (text) {
+            tooltip.innerText = text;
+            tooltip.style.left = `${event.clientX}px`;
+            tooltip.style.top = `${event.clientY - 10}px`; // Offset slightly above
+            tooltip.style.opacity = 1;
+            document.body.style.cursor = 'pointer';
+        } else {
+            tooltip.style.opacity = 0;
+            document.body.style.cursor = 'default';
+        }
+    } else {
+        tooltip.style.opacity = 0;
+        document.body.style.cursor = 'default';
+    }
+}
+
+// Helper to resolve tooltip text from UserData
+function getTooltipText(data) {
+    if (!data.action) return null;
+
+    if (data.action.startsWith('doChore:')) {
+        const parts = data.action.split(':');
+        return CHORE_CONFIG[parts[1]]?.name || "Chore";
+    }
+    if (data.action === 'openMarket') return "Computer (Marketplace)";
+    if (data.action === 'openFridge') return "Open Fridge";
+    if (data.action === 'cleanPet') return "Use Bathtub";
+    if (data.action === 'sleep') return "Sleep (Bed)";
+    if (data.action.startsWith('changeRoom:')) {
+        const room = data.action.split(':')[1];
+        const names = { livingroom: 'Living Room', bedroom: 'Bedroom', kitchen: 'Kitchen', bathroom: 'Bathroom' };
+        return `Go to ${names[room] || room}`;
+    }
+    if (data.action === 'playWithToy') return "Play with Toy";
+
+    return null;
+}
+
 // Routes interactions to specific logic
 function handleInteraction(action, object) {
     if (!action) return;
@@ -1131,13 +1244,7 @@ function handleInteraction(action, object) {
             if (!STATE.chores.progress[uniqueId]) STATE.chores.progress[uniqueId] = [];
             if (STATE.chores.progress[uniqueId].includes(subId)) return;
 
-            // Enforce Energy Cost
-            const cost = Math.ceil(choreDef.energy / choreDef.count) || 1;
-            if (STATE.stats.energy < cost) {
-                showNotification("Too tired! Sleep to restore energy.", "warning");
-                return;
-            }
-            STATE.stats.energy = Math.max(0, STATE.stats.energy - cost);
+
             STATE.stats.happiness = Math.max(0, STATE.stats.happiness - 2); // Work reduces fun
             STATE.chores.progress[uniqueId].push(subId);
 
@@ -1189,18 +1296,18 @@ function handleInteraction(action, object) {
 
     // Cleaning the Pet (Bathtub)
     if (action === 'cleanPet') {
-        STATE.stats.hygiene = 100;
-        showNotification("Squeaky clean! 🛁", "success");
-        updateUI();
-        if (petGroup) {
-            let spins = 0;
-            const spinInterval = setInterval(() => {
-                if (spins < 20) {
-                    petGroup.rotation.y += 0.5;
-                    spins++;
-                } else { clearInterval(spinInterval); petGroup.rotation.y = 0; }
-            }, 50);
+        const waterCost = 1;
+        if (STATE.money < waterCost) {
+            showNotification("Not enough money for water bill!", "error");
+            return;
         }
+        STATE.money -= waterCost;
+        STATE.spending.utilities += waterCost;
+
+        STATE.stats.hygiene = 100;
+        showNotification(`Squeaky clean! 🛁 (Bill: -$${waterCost})`, "success");
+        updateUI();
+        triggerPetReaction('bath');
     }
 
     // Sleeping (Bed) - Restricted to Night
@@ -1229,9 +1336,14 @@ function handleInteraction(action, object) {
         STATE.gameTime = wakeTime; // Fast forward to Morning
 
         if (crossedMidnight) {
+            // Rent Deduction (for sleeping overnight)
+            const rentCost = 10;
+            STATE.money -= rentCost;
+            STATE.spending.rent += rentCost;
+
             STATE.chores.progress = {}; // Reset Chores
             buildRoom(); // Reset Visuals
-            showNotification(`Slept ${Math.floor(minutesSlept / 60)}h. Energy: ${energyRestore}%. New Day! 🌅`, "success");
+            showNotification(`Slept ${Math.floor(minutesSlept / 60)}h. Energy: ${energyRestore}%. Rent -$${rentCost}. New Day! 🌅`, "success");
         } else {
             showNotification(`Slept ${Math.floor(minutesSlept / 60)}h. Energy: ${energyRestore}%.`, "success");
         }
@@ -1239,10 +1351,7 @@ function handleInteraction(action, object) {
         updateEnvironment();
         updateUI();
         // Animation: Lie down
-        if (petGroup) {
-            petGroup.rotation.z = Math.PI / 2;
-            setTimeout(() => { if (petGroup) petGroup.rotation.z = 0; }, 2000);
-        }
+        triggerPetReaction('sleep');
         return;
     }
 
@@ -1254,13 +1363,7 @@ function handleInteraction(action, object) {
         showNotification(`Played with Toy! Happiness +20`, "success");
         updateUI();
         // Animation: Jump
-        if (petGroup) {
-            let jumpHeight = 0;
-            const jumpInt = setInterval(() => {
-                jumpHeight += 0.2; petGroup.position.y = Math.sin(jumpHeight) * 1.5;
-                if (jumpHeight > Math.PI) { clearInterval(jumpInt); petGroup.position.y = 0; }
-            }, 50);
-        }
+        triggerPetReaction('play');
     }
 }
 
@@ -1277,10 +1380,10 @@ window.changeRoom = (roomName) => {
 
 // Legacy Work Function (kept for fallback)
 function doWork() {
-    if (STATE.stats.energy < 20) { showNotification("Too tired to work!", "warning"); return; }
+
     if (STATE.stats.happiness < 10) { showNotification("Too depressed to work...", "error"); return; }
     STATE.money += CONFIG.salary;
-    STATE.stats.energy -= 15; STATE.stats.hunger -= 10; STATE.stats.happiness -= 10;
+    STATE.stats.hunger -= 10; STATE.stats.happiness -= 10;
     updateUI(); showNotification(`Worked hard! Earned $${CONFIG.salary}. Happiness -10`, "success");
 }
 
@@ -1294,13 +1397,10 @@ window.buyItem = (type, cost) => {
     if (STATE.money >= cost) {
         STATE.money -= cost;
         if (type === 'kibble') {
-            STATE.inventory.food += 3;
+            STATE.inventory.food += 1;
             STATE.spending.food += cost;
-            showNotification("Purchased Premium Kibble! +3 Stock", "success");
-        } else if (type === 'elixir') {
-            STATE.inventory.elixir += 1;
-            STATE.spending.food += cost;
-            showNotification("Purchased Energy Drink! +1 Stock", "success");
+            showNotification("Purchased Premium Kibble! +1 Stock", "success");
+
         } else if (type === 'ball') {
             if (!STATE.inventory.toys.includes('ball')) {
                 STATE.inventory.toys.push('ball');
@@ -1339,17 +1439,68 @@ window.depositSavings = () => {
         STATE.savings += amt;
         showNotification(`Deposited $${amt}`, "success");
         updateUI();
-        // Check for Hat Unlock
-        if (STATE.savings >= CONFIG.savingsGoal && !STATE.inventory.hatUnlocked) {
-            STATE.inventory.hatUnlocked = true;
-            buildPet(); // Rebuild pet to show hat
-            showNotification("Savings Goal Reached! Hat Unlocked!", "success");
-        }
+        checkSavingsRewards();
         el.value = '';
     } else {
         showNotification("Insufficient funds", "error");
     }
 };
+
+// Global UI Action: Bank Withdraw
+window.withdrawSavings = () => {
+    const el = document.getElementById('deposit-amount');
+    const amt = parseInt(el.value);
+    if (!amt || amt <= 0) return;
+    if (STATE.savings >= amt) {
+        STATE.savings -= amt;
+        STATE.money += amt;
+        showNotification(`Withdrew $${amt}`, "success");
+        updateUI();
+        el.value = '';
+    } else {
+        showNotification("Insufficient savings", "error");
+    }
+};
+
+function checkSavingsRewards() {
+    let newUnlock = false;
+
+    // $100: Hat
+    if (STATE.savings >= 100 && !STATE.inventory.hatUnlocked) {
+        STATE.inventory.hatUnlocked = true;
+        buildPet();
+        showNotification("Reached $100! Golden Crown Unlocked! 👑", "success");
+        newUnlock = true;
+    }
+    // $200: Rug
+    if (STATE.savings >= 200 && !STATE.inventory.rugUnlocked) {
+        STATE.inventory.rugUnlocked = true;
+        showNotification("Reached $200! Fancy Rug Unlocked! 🧶", "success");
+        newUnlock = true;
+    }
+    // $300: Plant
+    if (STATE.savings >= 300 && !STATE.inventory.plantUnlocked) {
+        STATE.inventory.plantUnlocked = true;
+        showNotification("Reached $300! Houseplant Unlocked! 🪴", "success");
+        newUnlock = true;
+    }
+    // $400: Painting
+    if (STATE.savings >= 400 && !STATE.inventory.paintingUnlocked) {
+        STATE.inventory.paintingUnlocked = true;
+        showNotification("Reached $400! Art Piece Unlocked! 🎨", "success");
+        newUnlock = true;
+    }
+    // $500: Trophy
+    if (STATE.savings >= 500 && !STATE.inventory.trophyUnlocked) {
+        STATE.inventory.trophyUnlocked = true;
+        showNotification("Reached $500! Financing Champion Trophy! 🏆", "success");
+        newUnlock = true;
+    }
+
+    if (newUnlock && STATE.currentRoom === 'livingroom') {
+        buildRoom(); // Re-render to show new items
+    }
+}
 
 // Global UI Action: Refresh Fridge UI
 window.checkFridge = () => {
@@ -1365,31 +1516,20 @@ window.consumeItem = (type) => {
             STATE.stats.happiness = Math.min(100, STATE.stats.happiness + 15);
             STATE.stats.energy = Math.min(100, STATE.stats.energy + 5);
             showNotification("Premium Kibble! Hunger -40, Happy +15", "success");
+            triggerPetReaction('eating');
             updateFridgeUI();
             updateUI();
         } else {
             showNotification("No food! Buy some at the market.", "warning");
         }
-    } else if (type === 'elixir') {
-        if (STATE.inventory.elixir > 0) {
-            STATE.inventory.elixir--;
-            STATE.stats.hunger = Math.min(100, STATE.stats.hunger + 5);
-            STATE.stats.happiness = Math.min(100, STATE.stats.happiness + 5);
-            STATE.stats.energy = Math.min(100, STATE.stats.energy + 50); // Restore Energy
-            showNotification("Energy Drink! Energy +50, Hunger +5", "success");
-            updateFridgeUI();
-            updateUI();
-        } else {
-            showNotification("No Energy Drinks! Buy some at the market.", "warning");
-        }
+
     }
 };
 
 // Update Fridge Modal Text
 function updateFridgeUI() {
     document.getElementById('stock-food').innerText = STATE.inventory.food;
-    const stockElixir = document.getElementById('stock-elixir');
-    if (stockElixir) stockElixir.innerText = STATE.inventory.elixir;
+
 }
 
 // Shows floating text in 3D view (simulated via UI overlay)
@@ -1497,4 +1637,106 @@ function showNotification(msg, type = 'info') {
 function animate() {
     if (petGroup) { petGroup.rotation.y += 0.01; } // Gentle idle spin
     renderer.render(scene, camera);
+}
+
+// Triggers 3D animations and particles based on the action performed
+function triggerPetReaction(type) {
+    if (!petGroup) return;
+
+    if (type === 'eating') {
+        const animDuration = 20; // frames
+        let frame = 0;
+        const anim = setInterval(() => {
+            frame++;
+            // Dip head (Rotate X)
+            petGroup.rotation.x = Math.sin(frame * 0.5) * 0.3 + 0.2;
+            // Slight squish/bounce
+            petGroup.scale.set(1.1, 0.9, 1.1);
+            if (frame > animDuration) {
+                clearInterval(anim);
+                petGroup.rotation.x = 0;
+                petGroup.scale.set(1, 1, 1);
+            }
+        }, 50);
+        spawnEmoteParticle('🍖');
+        spawnEmoteParticle('😋');
+    }
+
+    else if (type === 'bath') {
+        let spins = 0;
+        const spinInterval = setInterval(() => {
+            if (spins < 20) {
+                petGroup.rotation.y += 0.8;
+                spins++;
+            } else {
+                clearInterval(spinInterval);
+                petGroup.rotation.y = 0;
+            }
+        }, 30);
+        spawnEmoteParticle('🫧');
+        spawnEmoteParticle('✨');
+    }
+
+    else if (type === 'sleep') {
+        petGroup.rotation.z = Math.PI / 2; // Lie on side
+        petGroup.position.y = 0.5; // Adjust for sideways position
+        spawnEmoteParticle('💤');
+        setTimeout(() => {
+            if (petGroup) {
+                petGroup.rotation.z = 0;
+                petGroup.position.y = 0;
+            }
+        }, 2000);
+    }
+
+    else if (type === 'play') {
+        let jumpHeight = 0;
+        const jumpInt = setInterval(() => {
+            jumpHeight += 0.2;
+            petGroup.position.y = Math.sin(jumpHeight) * 2;
+            if (jumpHeight > Math.PI) {
+                clearInterval(jumpInt);
+                petGroup.position.y = 0;
+            }
+        }, 30);
+        spawnEmoteParticle('❤️');
+        spawnEmoteParticle('🎾');
+    }
+}
+
+function spawnEmoteParticle(emoji) {
+    if (!scene || !petGroup) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 128; canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.font = '80px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, 64, 64);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+    const sprite = new THREE.Sprite(mat);
+
+    sprite.scale.set(3, 3, 1); // Size of the emote
+    sprite.position.copy(petGroup.position);
+    sprite.position.y += 2.5;
+    sprite.position.x += (Math.random() - 0.5) * 2;
+    sprite.position.z += (Math.random() - 0.5) * 2;
+
+    scene.add(sprite);
+
+    let frame = 0;
+    const anim = setInterval(() => {
+        sprite.position.y += 0.05;
+        sprite.material.opacity = 1 - (frame / 50);
+        frame++;
+        if (frame > 50) {
+            clearInterval(anim);
+            scene.remove(sprite);
+            mat.dispose();
+            tex.dispose();
+        }
+    }, 30);
 }

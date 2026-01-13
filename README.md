@@ -102,5 +102,3 @@ We strictly attribute the following external resources used under the MIT Licens
 ---
 
 > **Created by [Your Name], Stevenson High School.**
->
-> *Inspired by a passion for Mechanical Engineering and Financial Literacy.*
