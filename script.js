@@ -165,10 +165,6 @@ window.startGame = (type) => {
     showNotification(`Welcome, ${STATE.petName}!`, "success");
 
     window.addEventListener('keydown', (e) => {
-        if (e.key === '1') changeRoom('livingroom');
-        if (e.key === '2') changeRoom('kitchen');
-        if (e.key === '3') changeRoom('bedroom');
-        if (e.key === '4') changeRoom('bathroom');
         if (e.code === 'Space') interactWithRoom();
     });
 };
