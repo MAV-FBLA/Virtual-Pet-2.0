@@ -273,7 +273,7 @@ function buildRoom() {
 
         createDoor(-8, 0, -14.5, 0, 'kitchen', 0xf97316);
         createDoor(8, 0, -14.5, 0, 'bathroom', 0x3b82f6);
-        createDoor(-14.5, 0, -5, Math.PI / 2, 'bedroom', 0x8b5cf6);
+        createDoor(-14.5, 0, -9, Math.PI / 2, 'bedroom', 0x8b5cf6);
 
         createWindow(-12.5, 6, -14.4, 0, 2.5, 3.5);
         createWindow(12.5, 6, -14.4, 0, 2.5, 3.5);
@@ -285,7 +285,7 @@ function buildRoom() {
 
     } else if (STATE.currentRoom === 'bedroom') {
         createBedroomFixtures();
-        createDoor(14.5, 0, -4, -Math.PI / 2, 'livingroom', 0x14b8a6);
+        createDoor(14.5, 0, -9, -Math.PI / 2, 'livingroom', 0x14b8a6);
 
     } else if (STATE.currentRoom === 'bathroom') {
         createBathroomFixtures();
