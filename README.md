@@ -1,10 +1,7 @@
 # FBLA Virtual Pet 2026: "Eco-Bot & Friends"
 
-**FBLA Competitive Event**: Introduction to Programming (2025-2026)  
-**Student Developer**: [Your Name]  
-**School**: Stevenson High School
-
----
+**FBLA Competitive Event**: Introduction to Programming - Virtual Pet  
+**By**: Ayush Raj Geddamuri, Mathew Joe, Vivek Bharadwaj
 
 ## 1. Project Title & Description
 **Eco-Bot & Friends** is a **3D Virtual Pet Simulation** that merges the nostalgic engagement of a Tamagotchi with rigorous **Financial Literacy** concepts.
