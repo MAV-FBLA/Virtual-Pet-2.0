@@ -46,6 +46,12 @@ const STATE = {
     lastTick: Date.now(),
     chores: {
         progress: {}
+    },
+    tracking: {
+        totalHappinessTicks: 0,
+        happinessTickCount: 0,
+        nearDeathScenarios: 0,
+        nearDeathFlags: { hunger: false, energy: false, hygiene: false, happiness: false }
     }
 };
 
@@ -157,7 +163,6 @@ window.startGame = (type) => {
 
     document.getElementById('start-screen').classList.add('hidden');
     document.getElementById('hud').classList.remove('hidden');
-    document.getElementById('modal-help').classList.remove('hidden');
 
     initThreeJS();
     initGameLoop();
@@ -167,6 +172,8 @@ window.startGame = (type) => {
     window.addEventListener('keydown', (e) => {
         if (e.code === 'Space') interactWithRoom();
     });
+    
+    startTutorial();
 };
 
 // Initialize Three.js Scene, Camera, and Renderer
@@ -450,9 +457,32 @@ function createDoor(x, y, z, rotationY, targetRoom, colorHex, frameColor = 0x1e2
     knob.position.set(1.5, 3.5, 0.8);
     doorGroup.add(knob);
 
+    const signGroup = new THREE.Group();
+    signGroup.position.set(0, 4.5, 1.0); // Floating slightly above the doorknob (knob is y=3.5)
+    signGroup.rotation.x = 0; // Flat orientation since it's around camera level
+
     const sign = new THREE.Mesh(new THREE.BoxGeometry(3, 0.8, 0.2), new THREE.MeshStandardMaterial({ color: colorHex }));
-    sign.position.set(0, 8.5, 0);
-    doorGroup.add(sign);
+    sign.position.set(0, 0, 0);
+    signGroup.add(sign);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 60px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const names = { livingroom: 'Living Room', bedroom: 'Bedroom', kitchen: 'Kitchen', bathroom: 'Bathroom' };
+    const roomDisplayName = names[targetRoom] || targetRoom;
+    ctx.fillText(roomDisplayName, 256, 64);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    const textPlane = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.75), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    textPlane.position.set(0, 0, 0.11); // perfectly layered on top of the sign block
+    signGroup.add(textPlane);
+
+    doorGroup.add(signGroup);
 
     const hitBox = new THREE.Mesh(new THREE.BoxGeometry(5, 8, 2), new THREE.MeshBasicMaterial({ visible: false }));
     hitBox.position.y = 4;
@@ -825,7 +855,7 @@ function buildPet() {
 }
 
 function initGameLoop() {
-    decayInterval = setInterval(() => {
+    const runGameTick = () => {
         decayStats();
 
         const nextTime = STATE.gameTime + 15;
@@ -847,7 +877,14 @@ function initGameLoop() {
         updateUI();
         updatePetBehavior();
         updateEnvironment();
-    }, 1000);
+
+        const speedMultiplier = Math.floor((STATE.day - 1) / 5);
+        const nextTickSpeed = Math.max(200, 1000 - (speedMultiplier * 150));
+        
+        decayInterval = setTimeout(runGameTick, nextTickSpeed);
+    };
+
+    decayInterval = setTimeout(runGameTick, 1000);
 
     interestInterval = setInterval(() => {
         if (STATE.savings > 0) {
@@ -864,6 +901,11 @@ function initGameLoop() {
 }
 
 function decayStats() {
+    if (window.currentTutorialStep !== undefined && window.currentTutorialStep >= 0) return;
+
+    STATE.tracking.totalHappinessTicks += STATE.stats.happiness;
+    STATE.tracking.happinessTickCount++;
+
     STATE.stats.hunger = Math.max(0, STATE.stats.hunger - CONFIG.decayRates.hunger);
     if (STATE.stats.hunger === 0) return gameOver("Starvation");
 
@@ -882,10 +924,21 @@ function decayStats() {
 
     if (STATE.stats.hunger < 20 && Math.random() < 0.1) showNotification(`${STATE.petName} is hungry!`, "warning");
     if (STATE.stats.energy < 20 && Math.random() < 0.1) showNotification(`${STATE.petName} is tired!`, "warning");
+
+    ['hunger', 'energy', 'hygiene', 'happiness'].forEach(stat => {
+        if (STATE.stats[stat] < 20) {
+            if (!STATE.tracking.nearDeathFlags[stat]) {
+                STATE.tracking.nearDeathFlags[stat] = true;
+                STATE.tracking.nearDeathScenarios++;
+            }
+        } else {
+            STATE.tracking.nearDeathFlags[stat] = false;
+        }
+    });
 }
 
 function gameOver(reason) {
-    clearInterval(decayInterval);
+    clearTimeout(decayInterval);
     clearInterval(interestInterval);
     renderer.setAnimationLoop(null);
     renderer.currentLoop = false;
@@ -912,9 +965,14 @@ function gameOver(reason) {
             </div>
         </div>
 
-        <button onclick="location.reload()" class="px-10 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-2xl transition transform hover:scale-105 shadow-[0_0_30px_rgba(220,38,38,0.5)] pointer-events-auto cursor-pointer">
-            Try Again
-        </button>
+        <div class="flex gap-4 max-w-3xl mx-auto w-full justify-center">
+            <button onclick="location.reload()" class="px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-xl transition transform hover:scale-105 shadow-[0_0_30px_rgba(220,38,38,0.5)] pointer-events-auto cursor-pointer">
+                Try Again
+            </button>
+            <button onclick="downloadReport('${reason}')" class="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-xl transition transform hover:scale-105 shadow-[0_0_30px_rgba(37,99,235,0.5)] pointer-events-auto cursor-pointer flex items-center gap-2">
+                📄 Download PDF Report
+            </button>
+        </div>
     `;
     document.body.appendChild(screen);
 }
@@ -1051,11 +1109,10 @@ function onMouseMove(event) {
             tooltip.style.left = `${event.clientX}px`;
             tooltip.style.top = `${event.clientY - 10}px`; // Offset slightly above
             tooltip.style.opacity = 1;
-            document.body.style.cursor = 'pointer';
         } else {
             tooltip.style.opacity = 0;
-            document.body.style.cursor = 'default';
         }
+        document.body.style.cursor = 'pointer';
     } else {
         tooltip.style.opacity = 0;
         document.body.style.cursor = 'default';
@@ -1075,9 +1132,7 @@ function getTooltipText(data) {
     if (data.action === 'cleanPet') return "Use Bathtub";
     if (data.action === 'sleep') return "Sleep (Bed)";
     if (data.action.startsWith('changeRoom:')) {
-        const room = data.action.split(':')[1];
-        const names = { livingroom: 'Living Room', bedroom: 'Bedroom', kitchen: 'Kitchen', bathroom: 'Bathroom' };
-        return `Go to ${names[room] || room}`;
+        return null;
     }
     if (data.action === 'playWithToy') return "Play with Toy";
 
@@ -1187,6 +1242,7 @@ function handleInteraction(action, object) {
         STATE.gameTime = wakeTime; // Fast forward to Morning
 
         if (crossedMidnight) {
+            STATE.day++;
             // Rent Deduction (for sleeping overnight)
             const rentCost = 10;
             STATE.money -= rentCost;
@@ -1577,3 +1633,167 @@ function spawnEmoteParticle(emoji) {
         }
     }, 30);
 }
+
+window.downloadReport = (reason) => {
+    if (!window.jspdf) {
+        showNotification("PDF Library not loaded yet! Please try again in a moment.", "error");
+        return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const avgHappiness = STATE.tracking.happinessTickCount > 0 ? (STATE.tracking.totalHappinessTicks / STATE.tracking.happinessTickCount).toFixed(1) : 0;
+
+    // Page 1: Statistics
+    doc.setFontSize(22);
+    doc.text("Virtual Pet Caretaker Report", 105, 20, { align: "center" });
+
+    doc.setFontSize(14);
+    doc.text(`Pet Name: ${STATE.petName} (${STATE.petType.toUpperCase()})`, 20, 40);
+    doc.text(`Days Survived: ${STATE.day}`, 20, 50);
+    doc.text(`Cause of Death: ${reason.toUpperCase()}`, 20, 60);
+
+    doc.setFontSize(16);
+    doc.text("Financials:", 20, 80);
+    doc.setFontSize(12);
+    doc.text(`Total Lifetime Earnings: $${STATE.lifetimeEarnings.toFixed(2)}`, 30, 90);
+    doc.text(`Ending Bank Balance: $${STATE.money.toFixed(2)}`, 30, 100);
+    doc.text(`Ending Savings: $${STATE.savings.toFixed(2)}`, 30, 110);
+    
+    // Spending Breakdown
+    doc.text("Total Spending Breakdown:", 20, 130);
+    let startY = 140;
+    let totalSpend = 0;
+    for (let cat in STATE.spending) {
+        let val = STATE.spending[cat];
+        totalSpend += val;
+        doc.text(`- ${cat.charAt(0).toUpperCase() + cat.slice(1)}: $${val.toFixed(2)}`, 30, startY);
+        startY += 10;
+    }
+    doc.text(`Total Spent: $${totalSpend.toFixed(2)}`, 30, startY + 5);
+
+    doc.setFontSize(16);
+    doc.text("Care Stats:", 110, 80);
+    doc.setFontSize(12);
+    doc.text(`Average Happiness: ${avgHappiness}%`, 120, 90);
+    doc.text(`Near-Death Scenarios Avoided: ${STATE.tracking.nearDeathScenarios}`, 120, 100);
+
+    let rating = "C";
+    if (STATE.day > 10 && avgHappiness > 80 && STATE.tracking.nearDeathScenarios < 3) rating = "A+";
+    else if (STATE.day > 7 && avgHappiness > 70) rating = "A";
+    else if (STATE.day > 4 && avgHappiness > 60) rating = "B";
+    else if (STATE.day <= 2) rating = "F";
+
+    doc.setFontSize(16);
+    doc.text(`Overall Caretaker Rating: ${rating}`, 110, 120);
+
+    // Page 2: Math/Formulas
+    doc.addPage();
+    doc.setFontSize(22);
+    doc.text("Game Mechanics & Metrics Math", 105, 20, { align: "center" });
+    
+    doc.setFontSize(12);
+    let y = 40;
+    doc.text("1. Lifetime Earnings: Sum of all salary, chore rewards, and interest.", 20, y); y+=15;
+    doc.text("2. Average Happiness: Sum of Happiness per second / Total Seconds Alive.", 20, y); y+=15;
+    doc.text("3. Near-Death Scenarios: Counter increments whenever a stat drops below 20%.", 20, y); y+=10;
+    doc.text("     It only increments once per drop episode (resets when stat raises >= 20%).", 20, y); y+=15;
+    doc.text(`4. Chore Rewards: Ranges from $${CHORE_CONFIG.dusting?.reward||6} to $${CHORE_CONFIG.floors?.reward||120}.`, 20, y); y+=10;
+    doc.text("     Actual = Base Reward + (Education Level * 5).", 20, y); y+=15;
+    doc.text("5. Interest: Savings * 0.02 (2%) awarded every minute.", 20, y); y+=15;
+    doc.text("6. Stat Decay per second:", 20, y); y+=10;
+    doc.text(`     - Hunger: -${CONFIG.decayRates.hunger}`, 30, y); y+=8;
+    doc.text(`     - Energy: -${CONFIG.decayRates.energy}`, 30, y); y+=8;
+    doc.text(`     - Hygiene: -${CONFIG.decayRates.hygiene}`, 30, y); y+=8;
+    doc.text(`     - Happiness: -${CONFIG.decayRates.happiness} (Increases by 1.5x if Hunger < 40,`, 30, y); y+=8;
+    doc.text(`                   and 1.2x if Hygiene < 40).`, 30, y); y+=15;
+
+    doc.text("7. Rating Formula:", 20, y); y+=10;
+    doc.text("     - A+: Day > 10, Avg Happiness > 80%, Near Death < 3", 30, y); y+=8;
+    doc.text("     - A: Day > 7, Avg Happiness > 70%", 30, y); y+=8;
+    doc.text("     - B: Day > 4, Avg Happiness > 60%", 30, y); y+=8;
+    doc.text("     - C: Default Survival if > Day 2", 30, y); y+=8;
+    doc.text("     - F: Day <= 2", 30, y); y+=8;
+
+    doc.save("Virtual_Pet_Care_Report.pdf");
+};
+
+window.currentTutorialStep = -1;
+
+const TUTORIAL_STEPS = [
+    { text: "Welcome to Virtual Pet! Let me show you around. This is your new pet!", pos3D: {x:0, y:1.5, z:0}, dir: "down", yOffset: 60 },
+    { text: "Keep a close eye on these 4 stats! If any of them reach 0, it's Game Over.", focusId: "val-hunger", dir: "up", yOffset: 30 },
+    { text: "Here is your Money, Time, and Current Day count.", focusId: "display-money", dir: "up", yOffset: 30 },
+    { text: "Click on messes around the house (like this trash bin) to earn money!", pos3D: {x:-8, y:1, z:8}, dir: "down", yOffset: 60 },
+    { text: "Use your computer to access the Marketplace to buy food, toys, and upgrades.", pos3D: {x:0, y:2, z:-14}, dir: "down", yOffset: 60 },
+    { text: "Use these doors to visit the Kitchen, Bathroom, or Bedroom.", pos3D: {x:-8, y:4, z:-14.5}, dir: "down", yOffset: 60 },
+    { text: "At night, go to the Bedroom and click the Bed to sleep and restore energy. Have fun!", dir: "none" }
+];
+
+window.startTutorial = () => {
+    window.currentTutorialStep = 0;
+    const layer = document.getElementById('tutorial-layer');
+    if (layer) layer.classList.remove('hidden');
+    updateTutorial();
+    window.addEventListener('resize', updateTutorial);
+};
+
+window.nextTutorialStep = () => {
+    window.currentTutorialStep++;
+    if (window.currentTutorialStep >= TUTORIAL_STEPS.length) {
+        window.skipTutorial();
+    } else {
+        updateTutorial();
+    }
+};
+
+window.skipTutorial = () => {
+    window.currentTutorialStep = -1;
+    const layer = document.getElementById('tutorial-layer');
+    if (layer) layer.classList.add('hidden');
+    window.removeEventListener('resize', updateTutorial);
+};
+
+window.updateTutorial = () => {
+    if (window.currentTutorialStep < 0) return;
+    const step = TUTORIAL_STEPS[window.currentTutorialStep];
+    if (!step) return;
+
+    const textEl = document.getElementById('tutorial-text');
+    if (textEl) textEl.innerText = step.text;
+
+    const pointer = document.getElementById('tutorial-pointer');
+    if (!pointer) return;
+
+    if (step.dir === "none") {
+        pointer.style.opacity = 0;
+        return;
+    }
+    
+    pointer.style.opacity = 1;
+    let targetX = window.innerWidth / 2;
+    let targetY = window.innerHeight / 2;
+
+    if (step.pos3D) {
+        const vec = new THREE.Vector3(step.pos3D.x, step.pos3D.y, step.pos3D.z);
+        vec.project(camera);
+        targetX = (vec.x * 0.5 + 0.5) * window.innerWidth;
+        targetY = (vec.y * -0.5 + 0.5) * window.innerHeight;
+    } else if (step.focusId) {
+        const el = document.getElementById(step.focusId);
+        if (el) {
+            const rect = el.getBoundingClientRect();
+            targetX = rect.left + rect.width / 2;
+            targetY = rect.top + rect.height / 2;
+        }
+    }
+
+    if (step.dir === "down") {
+        pointer.innerText = "👇";
+        pointer.style.left = `${targetX}px`;
+        pointer.style.top = `${targetY - (step.yOffset || 50)}px`;
+    } else if (step.dir === "up") {
+        pointer.innerText = "👆";
+        pointer.style.left = `${targetX}px`;
+        pointer.style.top = `${targetY + (step.yOffset || 50)}px`;
+    }
+};
