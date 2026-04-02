@@ -60,7 +60,7 @@
         <div id="hud" class="hidden w-full h-full relative">
 
 
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div id="hud-top-bar" class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-opacity duration-300">
 
 
 
@@ -127,7 +127,7 @@
             </div>
 
 
-            <div class="absolute top-32 left-0 glass-panel p-3 rounded-xl interactable" id="pet-emotion-panel">
+            <div class="absolute top-32 left-0 glass-panel p-3 rounded-xl interactable transition-opacity duration-300" id="pet-emotion-panel">
                 <div class="text-3xl text-center mb-1" id="pet-emoji">😐</div>
                 <div class="text-xs text-slate-400 text-center uppercase tracking-wider" id="pet-status-text">Neutral
                 </div>
@@ -172,6 +172,10 @@
                     </div>
                 </div>
             </div>
+            
+            <button id="toggle-ui-btn" onclick="toggleUI()" class="fixed bottom-6 right-6 glass-panel w-12 h-12 flex items-center justify-center rounded-full hover:bg-slate-700 transition text-slate-300 hover:text-white border-slate-500 hover:border-teal-400 z-50 interactable" title="Toggle UI">
+                <span id="toggle-ui-icon" class="text-xl font-bold">👁️</span>
+            </button>
         </div>
 
 

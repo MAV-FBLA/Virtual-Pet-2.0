@@ -13,6 +13,7 @@ const STATE = {
     money: 200,
     savings: 0,
     day: 1,
+    uiHidden: false,
     lifetimeEarnings: 0,
     petName: "Buddy",
     petType: "dog",
@@ -119,15 +120,25 @@ const CHORE_CONFIG = {
     }
 };
 
-// Helper function to generate unique IDs for chore instances
-// If global, the ID distinguishes the room. If local, it's just the base ID.
+/**
+ * Generates a unique ID for chore instances based on their base ID and room.
+ *
+ * @param {string} baseId - The base identifier for the chore.
+ * @param {string} room - The room the chore is located in.
+ * @returns {string} The unique chore instance ID.
+ */
 const getChoreInstanceId = (baseId, room) => {
     const cfg = CHORE_CONFIG[baseId];
     if (cfg.global) return `${baseId}_${room}`;
     return baseId;
 };
 
-// Helper function to calculate reward including education bonus
+/**
+ * Calculates the total reward for a chore, including any education bonuses.
+ *
+ * @param {string} baseId - The base identifier for the chore.
+ * @returns {number} The calculated reward amount.
+ */
 const getChoreReward = (baseId) => {
     const cfg = CHORE_CONFIG[baseId];
     return cfg.reward + (STATE.educationLevel * 5);
@@ -142,7 +153,11 @@ let raycaster, pointer;
 let decayInterval, interestInterval;
 
 
-// Called from HTML buttons to start the game
+/**
+ * Initializes the game state and UI when a pet is chosen.
+ *
+ * @param {string} type - The selected pet type ('dog', 'cat', or 'rabbit').
+ */
 window.startGame = (type) => {
     // Add Stop Propagation listeners to all prevented elements
     document.querySelectorAll('.prevent-click-through').forEach(el => {
@@ -176,7 +191,9 @@ window.startGame = (type) => {
     startTutorial();
 };
 
-// Initialize Three.js Scene, Camera, and Renderer
+/**
+ * Initializes the Three.js scene, camera, renderer, and lighting setup.
+ */
 function initThreeJS() {
     const container = document.getElementById('canvas-container');
 
@@ -211,13 +228,18 @@ function initThreeJS() {
     buildPet();
 }
 
-// Handle Window Resize Events to keep 3D view correct
+/**
+ * Handles window resize events to maintain responsive 3D view aspect ratios.
+ */
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+/**
+ * Builds the current room's 3D environment, generating walls and specific fixtures.
+ */
 function buildRoom() {
     if (roomGroup) scene.remove(roomGroup);
     roomGroup = new THREE.Group();
@@ -306,7 +328,11 @@ function buildRoom() {
     scene.add(roomGroup);
 }
 
-// Spawns interactive chore objects based on the current room
+/**
+ * Spawns interactive chore objects within the 3D scene based on the specified room.
+ *
+ * @param {string} room - The room type to generate chores for.
+ */
 function setupChores(room) {
     const makeInteractable = (mesh, baseId, subId) => {
         const uniqueId = getChoreInstanceId(baseId, room);
@@ -437,7 +463,18 @@ function setupChores(room) {
     }
 }
 
-// Helper to create functional door objects
+/**
+ * Creates functional door objects for room transitions.
+ *
+ * @param {number} x - Local x coordinate.
+ * @param {number} y - Local y coordinate.
+ * @param {number} z - Local z coordinate.
+ * @param {number} rotationY - Door rotation along the Y-axis.
+ * @param {string} targetRoom - The destination room upon interaction.
+ * @param {number} colorHex - Base hex color for door accenting.
+ * @param {number} [frameColor=0x1e293b] - Frame hex color.
+ * @param {number} [panelColor=0x64748b] - Panel hex color.
+ */
 function createDoor(x, y, z, rotationY, targetRoom, colorHex, frameColor = 0x1e293b, panelColor = 0x64748b) {
     const doorGroup = new THREE.Group();
     doorGroup.position.set(x, y, z);
@@ -491,7 +528,16 @@ function createDoor(x, y, z, rotationY, targetRoom, colorHex, frameColor = 0x1e2
     roomGroup.add(doorGroup);
 }
 
-// Helper to create visual window objects
+/**
+ * Creates visual window objects for aesthetic and lighting enhancement.
+ *
+ * @param {number} x - Local x coordinate.
+ * @param {number} y - Local y coordinate.
+ * @param {number} z - Local z coordinate.
+ * @param {number} rotationY - Object rotation around Y-axis.
+ * @param {number} [width=3] - Window width.
+ * @param {number} [height=4] - Window height.
+ */
 function createWindow(x, y, z, rotationY, width = 3, height = 4) {
     const winGroup = new THREE.Group();
     winGroup.position.set(x, y, z);
@@ -525,7 +571,9 @@ function createWindow(x, y, z, rotationY, width = 3, height = 4) {
     roomGroup.add(winGroup);
 }
 
-// Complex Geometry for Bathroom
+/**
+ * Generates and positions complex bathroom fixture geometries including sink, toilet, tub, and mirror.
+ */
 function createBathroomFixtures() {
     const tubGroup = new THREE.Group();
     tubGroup.position.set(6, 0, -10);
@@ -565,7 +613,16 @@ function createBathroomFixtures() {
     roomGroup.add(sinkGroup);
 }
 
-// Helper to create basic furniture like Sofa or generic blocks
+/**
+ * Generates versatile furniture geometries like sofas or generic placeholder blocks.
+ *
+ * @param {number} x - Local x position.
+ * @param {number} y - Local y position.
+ * @param {number} z - Local z position.
+ * @param {number} color - Hexadecimal color code.
+ * @param {string} type - Identifier for specific geometry type (e.g. "Sofa").
+ * @param {number} [rotationY=0] - Initial y-axis rotation.
+ */
 function createFurniture(x, y, z, color, type, rotationY = 0) {
     const group = new THREE.Group();
     group.position.set(x, 0, z);
@@ -587,7 +644,9 @@ function createFurniture(x, y, z, color, type, rotationY = 0) {
     roomGroup.add(group);
 }
 
-// Bedroom Logic (Bed interaction = Sleep)
+/**
+ * Provides all bedroom fixtures, particularly focusing on the interactive bed used for resting.
+ */
 function createBedroomFixtures() {
     const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f });
     const mattressMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
@@ -616,7 +675,9 @@ function createBedroomFixtures() {
     const lampShadeR = lampShade.clone(); lampShadeR.position.set(5.5, 3.5, -12); roomGroup.add(lampShadeR);
 }
 
-// Kitchen Logic (Fridge interaction = Stock/Eat)
+/**
+ * Sets up the kitchen visual geometry and interactive fridge components.
+ */
 function createKitchenFixtures() {
     const chromeMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.6, roughness: 0.3 });
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
@@ -698,7 +759,13 @@ function createKitchenFixtures() {
     roomGroup.add(tableGroup);
 }
 
-// Computer creation (Marketplace Access)
+/**
+ * Generates the computer object which accesses the marketplace.
+ *
+ * @param {number} x - Local x position.
+ * @param {number} y - Local y position.
+ * @param {number} z - Local z position.
+ */
 function createComputer(x, y, z) {
     const group = new THREE.Group(); group.position.set(x, y, z);
 
@@ -716,7 +783,9 @@ function createComputer(x, y, z) {
     roomGroup.add(group);
 }
 
-// Spawns unlocked toys in the Living Room
+/**
+ * Spawns the user's unlocked toys and decor into the Living Room.
+ */
 function renderToys() {
     // Render unlocked savings rewards
     if (STATE.inventory.rugUnlocked) {
@@ -755,7 +824,9 @@ function renderToys() {
     }
 }
 
-// Constructed the 3D Pet Character
+/**
+ * Constructs the 3D pet character geometry based on the selected pet type.
+ */
 function buildPet() {
     if (petGroup) scene.remove(petGroup);
     petGroup = new THREE.Group();
@@ -1014,7 +1085,9 @@ function updateUI() {
     document.getElementById('spend-utilities').innerText = `$${STATE.spending.utilities.toFixed(2)}`;
 }
 
-// Determines Pet's current emotion and animates accordingly
+/**
+ * Determines the pet's current emotion based on stats and updates animations/emojis.
+ */
 function updatePetBehavior() {
     let emotion = "Happy";
     let emoji = "😊";
@@ -1040,7 +1113,9 @@ function updatePetBehavior() {
     }
 }
 
-// Updates Global Lighting/Fog based on time of day
+/**
+ * Iterates through game time and controls the global lighting/fog based on time of day.
+ */
 function updateEnvironment() {
     if (!scene) return;
     const hrs = Math.floor(STATE.gameTime / 60);
@@ -1051,7 +1126,11 @@ function updateEnvironment() {
     scene.fog.color.setHex(targetHex);
 }
 
-// Handles Raycasting for 3D clicks
+/**
+ * Submits raycasting collision detection to identify click interactivity.
+ *
+ * @param {MouseEvent} event - The mouse click event.
+ */
 function onMouseClick(event) {
     if (event.target.tagName !== 'CANVAS') return;
 
@@ -1073,7 +1152,11 @@ function onMouseClick(event) {
     }
 }
 
-// Handles Raycasting for Tooltip (Hover)
+/**
+ * Computes raycasting collision to provide tooltip hover info on interactive objects.
+ *
+ * @param {MouseEvent} event - The mouse movement event.
+ */
 function onMouseMove(event) {
     const tooltip = document.getElementById('tooltip');
 
@@ -1119,7 +1202,12 @@ function onMouseMove(event) {
     }
 }
 
-// Helper to resolve tooltip text from UserData
+/**
+ * Resolves proper tooltip text parsed from an object's provided UserData.
+ *
+ * @param {Object} data - The internal user data payload of the interaction object.
+ * @returns {string|null} The tooltip text to display, or null if invalid.
+ */
 function getTooltipText(data) {
     if (!data.action) return null;
 
@@ -1139,7 +1227,12 @@ function getTooltipText(data) {
     return null;
 }
 
-// Routes interactions to specific logic
+/**
+ * Central routing method to compute specific logic for interactive object actions.
+ *
+ * @param {string} action - Action identifier formatted string.
+ * @param {THREE.Object3D} [object] - The 3D object triggering the interaction.
+ */
 function handleInteraction(action, object) {
     if (!action) return;
 
@@ -1274,7 +1367,11 @@ function handleInteraction(action, object) {
     }
 }
 
-// User Action: Change Room
+/**
+ * Transitions the camera and environment to a specified room.
+ *
+ * @param {string} roomName - Global string identifier of the room to switch to.
+ */
 window.changeRoom = (roomName) => {
     // Legacy: if 'work' was a room, redirect
     if (roomName === 'work') { doWork(); return; }
@@ -1285,7 +1382,9 @@ window.changeRoom = (roomName) => {
     showNotification(`Entered ${roomName}`, "info");
 };
 
-// Legacy Work Function (kept for fallback)
+/**
+ * Legacy work function. Triggers simple logic as functional fallback.
+ */
 function doWork() {
 
     if (STATE.stats.happiness < 10) { showNotification("Too depressed to work...", "error"); return; }
@@ -1295,12 +1394,45 @@ function doWork() {
     updateUI(); showNotification(`Worked hard! Earned $${CONFIG.salary}. Happiness -10`, "success");
 }
 
-// Global UI Action: Close Modal
+/**
+ * Globally assigned UI action to close modal interfaces by their ID.
+ *
+ * @param {string} id - The DOM identifier of the modal element.
+ */
 window.closeModal = (id) => {
     document.getElementById(id).classList.add('hidden');
 };
 
-// Global UI Action: Buy Item
+/**
+ * Toggles the visibility of the primary HUD to clear visual space.
+ */
+window.toggleUI = () => {
+    STATE.uiHidden = !STATE.uiHidden;
+    const topBar = document.getElementById('hud-top-bar');
+    const emotionPanel = document.getElementById('pet-emotion-panel');
+    const taskSidebar = document.getElementById('task-sidebar');
+    const icon = document.getElementById('toggle-ui-icon');
+
+    if (STATE.uiHidden) {
+        if (topBar) { topBar.style.opacity = '0'; topBar.style.pointerEvents = 'none'; }
+        if (emotionPanel) { emotionPanel.style.opacity = '0'; emotionPanel.style.pointerEvents = 'none'; }
+        if (taskSidebar) { taskSidebar.style.opacity = '0'; taskSidebar.style.pointerEvents = 'none'; }
+        if (icon) icon.innerText = '🙈';
+        showNotification("UI Minimized", "info");
+    } else {
+        if (topBar) { topBar.style.opacity = '1'; topBar.style.pointerEvents = 'auto'; }
+        if (emotionPanel) { emotionPanel.style.opacity = '1'; emotionPanel.style.pointerEvents = 'auto'; }
+        if (taskSidebar) { taskSidebar.style.opacity = '1'; taskSidebar.style.pointerEvents = 'auto'; }
+        if (icon) icon.innerText = '👁️';
+    }
+};
+
+/**
+ * Handles transactional purchases for market items.
+ *
+ * @param {string} type - Identifier mapping to the item to be bought.
+ * @param {number} cost - The currency amount to deduct.
+ */
 window.buyItem = (type, cost) => {
     if (STATE.money >= cost) {
         STATE.money -= cost;
@@ -1323,7 +1455,9 @@ window.buyItem = (type, cost) => {
     }
 };
 
-// Global UI Action: Upgrade Education
+/**
+ * Submits transaction to upgrade the player's intrinsic education tier.
+ */
 window.buyEducation = () => {
     const cost = 50;
     if (STATE.money >= cost) {
@@ -1337,7 +1471,9 @@ window.buyEducation = () => {
     }
 };
 
-// Global UI Action: Bank Deposit
+/**
+ * Interacts with checking/savings subsystem to securely deposit available funds.
+ */
 window.depositSavings = () => {
     const el = document.getElementById('deposit-amount');
     const amt = parseInt(el.value);
@@ -1354,7 +1490,9 @@ window.depositSavings = () => {
     }
 };
 
-// Global UI Action: Bank Withdraw
+/**
+ * Interacts with checking/savings subsystem to securely withdraw saved funds.
+ */
 window.withdrawSavings = () => {
     const el = document.getElementById('deposit-amount');
     const amt = parseInt(el.value);
@@ -1405,12 +1543,18 @@ function checkSavingsRewards() {
     }
 }
 
-// Global UI Action: Refresh Fridge UI
+/**
+ * Explicit trigger for recalculating internal fridge components.
+ */
 window.checkFridge = () => {
     updateFridgeUI();
 };
 
-// Global UI Action: Consume Item from Inventory
+/**
+ * Initiates ingestion sequence for an available inventory item.
+ *
+ * @param {string} type - Type of inventory item to process.
+ */
 window.consumeItem = (type) => {
     if (type === 'food') {
         if (STATE.inventory.food > 0) {
@@ -1429,13 +1573,19 @@ window.consumeItem = (type) => {
     }
 };
 
-// Update Fridge Modal Text
+/**
+ * Syncs the fridge interaction UI with the state data structure.
+ */
 function updateFridgeUI() {
     document.getElementById('stock-food').innerText = STATE.inventory.food;
 
 }
 
-// Shows floating text in 3D view (simulated via UI overlay)
+/**
+ * Projects floating confirmation strings overlaying the 3D interaction space.
+ *
+ * @param {string} text - Desired notification phrase.
+ */
 let indicatorTimeout;
 function showActionIndicator(text) {
     const el = document.getElementById('action-indicator'); const txt = document.getElementById('action-text');
@@ -1446,7 +1596,9 @@ function showActionIndicator(text) {
     }
 }
 
-// Updates the Sidebar Task List based on active chores
+/**
+ * Evaluates active global vs local chore metrics and mutates the visual sidebar DOM stack.
+ */
 function updateTaskSidebar() {
     const list = document.getElementById('task-list-content'); if (!list) return;
     list.innerHTML = '';
@@ -1498,7 +1650,11 @@ function updateTaskSidebar() {
     });
 }
 
-// Visual Effect: Money Particles
+/**
+ * Triggers a localized particle emission sequence to signify wealth generation.
+ *
+ * @param {THREE.Vector3} pos - Origin coordinate of the particle system.
+ */
 function spawnMoneyParticles(pos) {
     if (!scene || !camera) return;
     const particle = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshBasicMaterial({ color: 0x4ade80, side: THREE.DoubleSide, transparent: true }));
@@ -1510,7 +1666,12 @@ function spawnMoneyParticles(pos) {
     }, 30);
 }
 
-// General Notification System (Toast)
+/**
+ * Pushes ephemeral toast messages to the global notification stack.
+ *
+ * @param {string} msg - Information text inside the toast.
+ * @param {string} [type='info'] - Classification subset designating color and behavior.
+ */
 function showNotification(msg, type = 'info') {
     const container = document.getElementById('notification-area'); if (!container) return;
     const toast = document.createElement('div');
@@ -1528,13 +1689,19 @@ function showNotification(msg, type = 'info') {
     setTimeout(() => { toast.classList.remove('toast-enter-active'); toast.classList.add('toast-exit-active'); setTimeout(() => toast.remove(), 300); }, 3000);
 }
 
-// Main Render Loop (Three.js)
+/**
+ * Primary 3D orchestration loop delegating scene calculation to the current renderer.
+ */
 function animate() {
     if (petGroup) { petGroup.rotation.y += 0.01; }
     renderer.render(scene, camera);
 }
 
-// Triggers 3D animations and particles based on the action performed
+/**
+ * Initiates conditional object animations bound to specific programmatic interactions.
+ *
+ * @param {string} type - Descriptive identifier mapped to an inherent reaction.
+ */
 function triggerPetReaction(type) {
     if (!petGroup) return;
 
