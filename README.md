@@ -76,18 +76,20 @@ Monitor the HUD bars at the top left:
 * **Rendering:** Three.js
 * **Styling:** Tailwind CSS
 * **Markup:** HTML5
+* **PDF Generation:** jsPDF
 
 ---
 
 ## 5. Credits & Acknowledgments
 
 ### Academic Integrity Commitment
-All of the code was written by the authors of this project. We did not find the code online or use any generative AI capabilities to build this project.
+All this code was manually written by the authors of this project. We did not find the code online and only used generative AI for the purpose of debugging, fixing errors, and learning the functions of the libraries we used.
 
 ### External Assets & Attribution
 We strictly attribute the following external resources used under the MIT License or Open Source provisions:
 * **3D Core Library:** [Three.js](https://threejs.org/)
 * **CSS Framework:** [Tailwind CSS](https://tailwindcss.com/)
+* **PDF Generation:** [jsPDF](https://github.com/parallax/jsPDF)
 * **Fonts:** "Inter" font family via [Google Fonts](https://fonts.google.com/)
 * **Textures:** Generated procedurally using HTML5 Canvas API
 * **Emojis:** UI Icons are standard Unicode Emojis.
