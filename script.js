@@ -53,8 +53,121 @@ const STATE = {
         happinessTickCount: 0,
         nearDeathScenarios: 0,
         nearDeathFlags: { hunger: false, energy: false, hygiene: false, happiness: false }
-    }
+    },
+    gameOver: false
 };
+
+// ─── Save / Load / Reset System ─────────────────────────────────────────────
+
+/** Deep-copy of initial STATE used as fallback defaults during hydration. */
+const DEFAULT_STATE = JSON.parse(JSON.stringify(STATE));
+
+const SAVE_KEY = 'MAVPet_SaveData';
+
+/**
+ * Serializes the current STATE object to localStorage.
+ * Called automatically on every game tick and after major state changes.
+ */
+function saveGameState() {
+    try {
+        const serialized = JSON.stringify(STATE);
+        localStorage.setItem(SAVE_KEY, serialized);
+    } catch (e) {
+        console.warn('[MAV-Pet] Save failed:', e);
+    }
+}
+
+/**
+ * Recursively merges saved data onto a defaults object.
+ * Ensures missing keys in a partial save still get default values.
+ *
+ * @param {Object} defaults - The DEFAULT_STATE reference.
+ * @param {Object} saved    - The parsed save data.
+ * @returns {Object} The merged result.
+ */
+function deepMerge(defaults, saved) {
+    const result = {};
+    for (const key of Object.keys(defaults)) {
+        if (
+            saved.hasOwnProperty(key) &&
+            typeof defaults[key] === 'object' &&
+            defaults[key] !== null &&
+            !Array.isArray(defaults[key])
+        ) {
+            // Recurse into nested plain objects
+            result[key] = deepMerge(defaults[key], saved[key] ?? {});
+        } else if (saved.hasOwnProperty(key)) {
+            result[key] = saved[key];
+        } else {
+            result[key] = defaults[key];
+        }
+    }
+    return result;
+}
+
+/**
+ * Validates critical numeric stats are within expected bounds.
+ *
+ * @param {Object} data - The hydrated state data to validate.
+ * @returns {boolean} True if data is valid and safe to use.
+ */
+function validateSaveData(data) {
+    // Ensure core properties are the right type
+    if (typeof data.money !== 'number' || isNaN(data.money)) return false;
+    if (typeof data.day !== 'number' || data.day < 1) return false;
+    if (typeof data.petType !== 'string' || !['dog', 'cat', 'rabbit'].includes(data.petType)) return false;
+    if (typeof data.petName !== 'string' || data.petName.length === 0) return false;
+
+    // Validate stats are numbers in [0, 100]
+    const statKeys = ['hunger', 'energy', 'hygiene', 'happiness'];
+    for (const s of statKeys) {
+        const val = data.stats?.[s];
+        if (typeof val !== 'number' || isNaN(val) || val < 0 || val > 100) return false;
+    }
+
+    return true;
+}
+
+/**
+ * Attempts to load and hydrate STATE from localStorage.
+ * Returns true if a valid save was found and restored, false otherwise.
+ */
+function loadGameState() {
+    try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return false;
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return false;
+
+        // Deep-merge saved data over defaults so missing keys get defaults
+        const merged = deepMerge(DEFAULT_STATE, parsed);
+
+        if (!validateSaveData(merged)) {
+            console.warn('[MAV-Pet] Save data failed validation – starting fresh.');
+            localStorage.removeItem(SAVE_KEY);
+            return false;
+        }
+
+        // Hydrate the live STATE object
+        Object.assign(STATE, merged);
+        STATE.lastTick = Date.now(); // Reset tick timer so decay doesn't jump
+        return true;
+    } catch (e) {
+        console.warn('[MAV-Pet] Load failed (corrupted data?) – starting fresh:', e);
+        localStorage.removeItem(SAVE_KEY);
+        return false;
+    }
+}
+
+/**
+ * Clears all saved data and reloads the page for a fresh demo.
+ */
+function resetGame() {
+    localStorage.removeItem(SAVE_KEY);
+    location.reload();
+}
+window.resetGame = resetGame;
 
 const CHORE_CONFIG = {
     dishes: {
@@ -173,6 +286,9 @@ window.startGame = (type) => {
         return;
     }
 
+    // Reset STATE to factory defaults before starting fresh
+    Object.assign(STATE, JSON.parse(JSON.stringify(DEFAULT_STATE)));
+
     STATE.petType = type;
     STATE.petName = nameInput;
 
@@ -182,6 +298,8 @@ window.startGame = (type) => {
     initThreeJS();
     initGameLoop();
 
+    saveGameState(); // Persist initial state
+
     showNotification(`Welcome, ${STATE.petName}!`, "success");
 
     window.addEventListener('keydown', (e) => {
@@ -189,6 +307,32 @@ window.startGame = (type) => {
     });
     
     startTutorial();
+};
+
+/**
+ * Resumes a previously saved game session, bypassing the start screen.
+ */
+window.resumeGame = () => {
+    document.querySelectorAll('.prevent-click-through').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    });
+
+    // Hydrate STATE from save data now (not before)
+    loadGameState();
+
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('hud').classList.remove('hidden');
+
+    initThreeJS();
+    initGameLoop();
+
+    showNotification(`Welcome back, ${STATE.petName}!`, "success");
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') interactWithRoom();
+    });
 };
 
 /**
@@ -925,6 +1069,8 @@ function buildPet() {
     scene.add(petGroup);
 }
 
+let autoSaveInterval;
+
 function initGameLoop() {
     const runGameTick = () => {
         decayStats();
@@ -948,6 +1094,7 @@ function initGameLoop() {
         updateUI();
         updatePetBehavior();
         updateEnvironment();
+        saveGameState(); // Auto-save on every tick
 
         const speedMultiplier = Math.floor((STATE.day - 1) / 5);
         const nextTickSpeed = Math.max(200, 1000 - (speedMultiplier * 150));
@@ -964,8 +1111,12 @@ function initGameLoop() {
             STATE.lifetimeEarnings += interest;
             showNotification(`Interest Earned: +$${interest.toFixed(2)}`, "success");
             updateUI();
+            saveGameState(); // Save after interest accrual
         }
     }, 60000);
+
+    // Periodic safety-net auto-save every 60 seconds
+    autoSaveInterval = setInterval(saveGameState, 60000);
 
     renderer.setAnimationLoop(animate);
     renderer.currentLoop = true;
@@ -1011,8 +1162,12 @@ function decayStats() {
 function gameOver(reason) {
     clearTimeout(decayInterval);
     clearInterval(interestInterval);
+    if (autoSaveInterval) clearInterval(autoSaveInterval);
     renderer.setAnimationLoop(null);
     renderer.currentLoop = false;
+
+    STATE.gameOver = true;
+    saveGameState(); // Persist the death so a dead save can't be resumed
 
     const ui = document.getElementById('ui-layer');
     if (ui) ui.style.pointerEvents = 'none';

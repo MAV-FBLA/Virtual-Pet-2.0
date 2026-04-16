@@ -53,6 +53,15 @@
                     <input type="text" id="pet-name-input" placeholder="Name your pet..."
                         class="w-full p-3 rounded-lg bg-slate-800 text-white border border-slate-600 focus:border-teal-400 focus:outline-none text-center text-lg">
                 </div>
+
+                <!-- Resume Banner (shown by JS when a save exists) -->
+                <div id="resume-banner" class="hidden mb-4 p-4 bg-teal-900/60 border border-teal-500 rounded-xl">
+                    <p class="text-slate-200 mb-3">💾 Saved game found! <strong id="resume-pet-name" class="text-teal-300"></strong> is waiting for you.</p>
+                    <div class="flex gap-3 justify-center">
+                        <button onclick="resumeGame()" class="px-6 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold transition hover:scale-105 shadow-lg shadow-teal-600/30">Continue Game</button>
+                        <button onclick="resetGame()" class="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-bold transition hover:scale-105">Fresh Start</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -122,6 +131,11 @@
                         class="glass-panel w-12 h-12 flex items-center justify-center rounded-full hover:bg-slate-700 transition text-slate-300 hover:text-white border-slate-500 hover:border-teal-400"
                         title="How to Play">
                         <span class="text-2xl font-bold">?</span>
+                    </button>
+                    <button onclick="resetGame()"
+                        class="glass-panel w-12 h-12 flex items-center justify-center rounded-full hover:bg-red-900/60 transition text-slate-300 hover:text-red-400 border-slate-500 hover:border-red-500"
+                        title="Reset Game (Fresh Demo)">
+                        <span class="text-xl font-bold">🔄</span>
                     </button>
                 </div>
             </div>
@@ -338,6 +352,27 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <script src="script.js"></script>
+
+    <!-- Initialize save/load on page ready -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Peek at save data WITHOUT hydrating STATE
+            try {
+                const raw = localStorage.getItem('MAVPet_SaveData');
+                if (raw) {
+                    const peek = JSON.parse(raw);
+                    if (peek && !peek.gameOver && peek.petName && peek.petType) {
+                        const banner = document.getElementById('resume-banner');
+                        const nameEl = document.getElementById('resume-pet-name');
+                        if (banner) banner.classList.remove('hidden');
+                        if (nameEl) nameEl.textContent = `${peek.petName} the ${peek.petType}`;
+                    }
+                }
+            } catch (e) {
+                // Corrupted save — ignore, user can start fresh
+            }
+        });
+    </script>
 </body>
 
 </html>
