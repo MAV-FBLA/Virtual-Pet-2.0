@@ -126,6 +126,11 @@
                     </div>
                     <div class="h-8 w-px bg-slate-600"></div>
 
+                    <button onclick="openBankAudit()"
+                        class="glass-panel w-12 h-12 flex items-center justify-center rounded-full hover:bg-teal-900/60 transition text-slate-300 hover:text-teal-400 border-slate-500 hover:border-teal-400"
+                        title="Bank Audit Statement">
+                        <span class="text-xl">📊</span>
+                    </button>
 
                     <button onclick="document.getElementById('modal-help').classList.remove('hidden')"
                         class="glass-panel w-12 h-12 flex items-center justify-center rounded-full hover:bg-slate-700 transition text-slate-300 hover:text-white border-slate-500 hover:border-teal-400"
@@ -350,6 +355,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 
     <script src="script.js"></script>
 

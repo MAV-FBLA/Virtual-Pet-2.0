@@ -54,6 +54,8 @@ const STATE = {
         nearDeathScenarios: 0,
         nearDeathFlags: { hunger: false, energy: false, hygiene: false, happiness: false }
     },
+    transactions: [],
+    netWorthHistory: [],
     gameOver: false
 };
 
@@ -63,6 +65,23 @@ const STATE = {
 const DEFAULT_STATE = JSON.parse(JSON.stringify(STATE));
 
 const SAVE_KEY = 'MAVPet_SaveData';
+
+/**
+ * Records a financial transaction in the STATE ledger.
+ * @param {string} category - Transaction category (e.g., 'Income', 'Food', 'Rent').
+ * @param {string} description - Human-readable description.
+ * @param {number} amount - Positive for income, negative for expense.
+ */
+function recordTransaction(category, description, amount) {
+    STATE.transactions.push({ day: STATE.day, time: STATE.gameTime, category, description, amount });
+}
+
+/**
+ * Snapshots current net worth into the history tracker for charting.
+ */
+function recordNetWorth() {
+    STATE.netWorthHistory.push({ day: STATE.day, netWorth: STATE.money + STATE.savings });
+}
 
 /**
  * Serializes the current STATE object to localStorage.
@@ -291,6 +310,7 @@ window.startGame = (type) => {
 
     STATE.petType = type;
     STATE.petName = nameInput;
+    recordNetWorth();
 
     document.getElementById('start-screen').classList.add('hidden');
     document.getElementById('hud').classList.remove('hidden');
@@ -1083,9 +1103,11 @@ function initGameLoop() {
             const rentCost = 10;
             STATE.money -= rentCost;
             STATE.spending.rent += rentCost;
+            recordTransaction('Rent', 'Daily rent payment', -rentCost);
             showNotification(`Rent Paid: -$${rentCost}`, "warning");
 
             showNotification("🌅 A brand new day! Tasks have been reset.", "info");
+            recordNetWorth();
             buildRoom();
         }
         STATE.gameTime = nextTime % 1440;
@@ -1109,6 +1131,7 @@ function initGameLoop() {
             const interest = STATE.savings * 0.02;
             STATE.savings += interest;
             STATE.lifetimeEarnings += interest;
+            recordTransaction('Interest', 'Savings interest (2%)', interest);
             showNotification(`Interest Earned: +$${interest.toFixed(2)}`, "success");
             updateUI();
             saveGameState(); // Save after interest accrual
@@ -1197,6 +1220,9 @@ function gameOver(reason) {
             </button>
             <button onclick="downloadReport('${reason}')" class="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-xl transition transform hover:scale-105 shadow-[0_0_30px_rgba(37,99,235,0.5)] pointer-events-auto cursor-pointer flex items-center gap-2">
                 📄 Download PDF Report
+            </button>
+            <button onclick="openBankAudit()" class="px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-bold text-xl transition transform hover:scale-105 shadow-[0_0_30px_rgba(45,212,191,0.5)] pointer-events-auto cursor-pointer flex items-center gap-2">
+                📊 Bank Audit
             </button>
         </div>
     `;
@@ -1434,6 +1460,7 @@ function handleInteraction(action, object) {
                 const reward = getChoreReward(baseId);
                 STATE.money += reward;
                 STATE.lifetimeEarnings += reward;
+                recordTransaction('Income', `Chore: ${choreDef.name}`, reward);
                 showNotification(`Global Task Complete! +$${reward.toFixed(2)}`, "success");
                 showNotification(choreDef.lesson, "info");
             }
@@ -1457,6 +1484,7 @@ function handleInteraction(action, object) {
         }
         STATE.money -= waterCost;
         STATE.spending.utilities += waterCost;
+        recordTransaction('Utilities', 'Bath water bill', -waterCost);
 
         STATE.stats.hygiene = 100;
         showNotification(`Squeaky clean! 🛁 (Bill: -$${waterCost})`, "success");
@@ -1495,6 +1523,8 @@ function handleInteraction(action, object) {
             const rentCost = 10;
             STATE.money -= rentCost;
             STATE.spending.rent += rentCost;
+            recordTransaction('Rent', 'Overnight rent payment', -rentCost);
+            recordNetWorth();
 
             STATE.chores.progress = {}; // Reset Chores
             buildRoom(); // Reset Visuals
@@ -1594,6 +1624,7 @@ window.buyItem = (type, cost) => {
         if (type === 'kibble') {
             STATE.inventory.food += 1;
             STATE.spending.food += cost;
+            recordTransaction('Food', 'Premium Kibble', -cost);
             showNotification("Purchased Premium Kibble! +1 Stock", "success");
 
         } else if (type === 'ball') {
@@ -1602,6 +1633,7 @@ window.buyItem = (type, cost) => {
                 renderToys();
             }
             STATE.spending.toys += cost;
+            recordTransaction('Toys', 'Bouncy Ball', -cost);
             showNotification("Purchased Bouncy Ball!", "success");
         }
         updateUI();
@@ -1619,6 +1651,7 @@ window.buyEducation = () => {
         STATE.money -= cost;
         STATE.educationLevel++;
         STATE.spending.education += cost;
+        recordTransaction('Education', `Education Course (Lv.${STATE.educationLevel})`, -cost);
         showNotification("Education Upgraded! Rewards +$2", "success");
         updateUI();
     } else {
@@ -1636,6 +1669,7 @@ window.depositSavings = () => {
     if (STATE.money >= amt) {
         STATE.money -= amt;
         STATE.savings += amt;
+        recordTransaction('Transfer', 'Deposit to savings', -amt);
         showNotification(`Deposited $${amt}`, "success");
         updateUI();
         checkSavingsRewards();
@@ -1655,6 +1689,7 @@ window.withdrawSavings = () => {
     if (STATE.savings >= amt) {
         STATE.savings -= amt;
         STATE.money += amt;
+        recordTransaction('Transfer', 'Withdrawal from savings', amt);
         showNotification(`Withdrew $${amt}`, "success");
         updateUI();
         el.value = '';
@@ -2037,6 +2072,338 @@ window.downloadReport = (reason) => {
     doc.text("     - F: Day <= 2", 30, y); y+=8;
 
     doc.save("Virtual_Pet_Care_Report.pdf");
+};
+
+// ─── Bank Audit System ──────────────────────────────────────────────────────
+// Professional financial audit modal with Chart.js visualizations, metrics,
+// a transaction ledger, refined grading, and print/export capability.
+
+/**
+ * Computes financial health metrics from current STATE data.
+ * @returns {Object} Metrics object with savings rate, DTI, education ROI, avg happiness.
+ */
+function computeFinancialMetrics() {
+    const totalSpending = Object.values(STATE.spending).reduce((a, b) => a + b, 0);
+    const totalAssets = STATE.money + STATE.savings;
+    const savingsRate = totalAssets > 0 ? (STATE.savings / totalAssets) * 100 : 0;
+    const dtiRatio = STATE.lifetimeEarnings > 0 ? Math.min(1, totalSpending / STATE.lifetimeEarnings) : 0;
+
+    const choreCompletions = STATE.transactions.filter(t => t.category === 'Income').length;
+    const educationSpending = STATE.spending.education;
+    const educationROI = educationSpending > 0
+        ? ((STATE.educationLevel * 5 * choreCompletions) / educationSpending) * 100
+        : 0;
+
+    const avgHappiness = STATE.tracking.happinessTickCount > 0
+        ? STATE.tracking.totalHappinessTicks / STATE.tracking.happinessTickCount
+        : 100;
+
+    return { totalSpending, totalAssets, savingsRate, dtiRatio, educationROI, avgHappiness, choreCompletions };
+}
+
+/**
+ * Computes financial grade using a rigorous rubric.
+ * Grade A requires maintaining a savings buffer and high education investment.
+ *
+ * @param {Object} m - Output of computeFinancialMetrics().
+ * @returns {Object} { grade, color, desc }
+ */
+function computeFinancialGrade(m) {
+    if (STATE.day > 10 && STATE.savings >= 200 && STATE.educationLevel >= 2 &&
+        m.savingsRate > 30 && m.avgHappiness > 80)
+        return { grade: 'A+', color: '#4ade80', desc: 'Exceptional Financial Stewardship' };
+    if (STATE.day > 7 && STATE.savings >= 100 && STATE.educationLevel >= 1 &&
+        m.savingsRate > 20 && m.avgHappiness > 70)
+        return { grade: 'A', color: '#22c55e', desc: 'Excellent Financial Health' };
+    if (STATE.day > 5 && STATE.savings >= 50 && m.avgHappiness > 60)
+        return { grade: 'B+', color: '#a3e635', desc: 'Very Good Standing' };
+    if (STATE.day > 4 && m.avgHappiness > 50)
+        return { grade: 'B', color: '#facc15', desc: 'Good Standing' };
+    if (STATE.day > 2)
+        return { grade: 'C', color: '#fb923c', desc: 'Fair \u2014 Needs Improvement' };
+    return { grade: 'F', color: '#ef4444', desc: 'Poor \u2014 Critical Review Required' };
+}
+
+/**
+ * Generates HTML for the scrollable transaction ledger table.
+ * @returns {string} Complete HTML table or empty-state message.
+ */
+function buildTransactionLedgerHTML() {
+    if (STATE.transactions.length === 0) {
+        return '<p style="text-align:center;color:#64748b;padding:32px;font-style:italic">No transactions recorded yet.</p>';
+    }
+    const rows = STATE.transactions.slice().reverse().map(t => {
+        const pos = t.amount >= 0;
+        const cls = pos ? 'audit-positive' : 'audit-negative';
+        const sign = pos ? '+' : '';
+        const hrs = Math.floor((t.time || 0) / 60);
+        const mins = (t.time || 0) % 60;
+        const period = hrs >= 12 ? 'PM' : 'AM';
+        const dh = hrs % 12 || 12;
+        const ts = `${dh}:${mins.toString().padStart(2, '0')} ${period}`;
+        return `<tr>
+            <td>Day ${t.day} <span class="audit-time-sub">${ts}</span></td>
+            <td><span class="audit-cat-badge audit-cat-${t.category.toLowerCase()}">${t.category}</span></td>
+            <td>${t.description}</td>
+            <td class="${cls}">${sign}$${Math.abs(t.amount).toFixed(2)}</td>
+        </tr>`;
+    }).join('');
+    return `<table class="audit-table">
+        <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th></tr></thead>
+        <tbody>${rows}</tbody>
+    </table>`;
+}
+
+/** Chart.js instance references for cleanup on modal re-open. */
+let netWorthChartInstance = null;
+let spendingChartInstance = null;
+
+/**
+ * Initializes the Net Worth Over Time line chart using Chart.js.
+ */
+function initNetWorthChart() {
+    const canvas = document.getElementById('chart-net-worth');
+    if (!canvas || typeof Chart === 'undefined') return;
+    const data = STATE.netWorthHistory.length > 0
+        ? STATE.netWorthHistory
+        : [{ day: STATE.day, netWorth: STATE.money + STATE.savings }];
+    if (netWorthChartInstance) netWorthChartInstance.destroy();
+    netWorthChartInstance = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: data.map(d => `Day ${d.day}`),
+            datasets: [{
+                label: 'Net Worth ($)',
+                data: data.map(d => d.netWorth),
+                borderColor: '#2dd4bf',
+                backgroundColor: function(context) {
+                    const chart = context.chart;
+                    const area = chart.chartArea;
+                    if (!area) return 'rgba(45,212,191,0.1)';
+                    const g = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+                    g.addColorStop(0, 'rgba(45,212,191,0.25)');
+                    g.addColorStop(1, 'rgba(45,212,191,0.02)');
+                    return g;
+                },
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#2dd4bf',
+                pointBorderColor: '#0f172a',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                borderWidth: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15,23,42,0.95)',
+                    borderColor: 'rgba(45,212,191,0.5)',
+                    borderWidth: 1,
+                    titleColor: '#2dd4bf',
+                    bodyColor: '#e2e8f0',
+                    padding: 10,
+                    cornerRadius: 8,
+                    callbacks: { label: (ctx) => `Net Worth: $${ctx.parsed.y.toFixed(2)}` }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#94a3b8', font: { family: 'Inter', size: 11 } },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                    border: { color: 'rgba(255,255,255,0.08)' }
+                },
+                y: {
+                    ticks: { color: '#94a3b8', font: { family: 'Inter', size: 11 }, callback: (v) => `$${v}` },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                    border: { color: 'rgba(255,255,255,0.08)' }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Initializes the Spending Categories doughnut chart using Chart.js.
+ */
+function initSpendingChart() {
+    const canvas = document.getElementById('chart-spending');
+    if (!canvas || typeof Chart === 'undefined') return;
+    const cats = ['food', 'toys', 'education', 'rent', 'utilities', 'care'];
+    const labels = ['Food', 'Toys', 'Education', 'Rent', 'Utilities', 'Healthcare'];
+    const colors = ['#f97316', '#ec4899', '#8b5cf6', '#06b6d4', '#22c55e', '#ef4444'];
+    const data = cats.map(c => STATE.spending[c] || 0);
+    const hasData = data.some(v => v > 0);
+    if (spendingChartInstance) spendingChartInstance.destroy();
+    spendingChartInstance = new Chart(canvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: hasData ? labels : ['No Spending Yet'],
+            datasets: [{
+                data: hasData ? data : [1],
+                backgroundColor: hasData ? colors : ['#334155'],
+                borderColor: '#0f172a',
+                borderWidth: 3,
+                hoverBorderColor: '#1e293b',
+                hoverBorderWidth: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#e2e8f0', padding: 10, font: { family: 'Inter', size: 11 }, usePointStyle: true, pointStyle: 'circle' }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15,23,42,0.95)',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    titleColor: '#e2e8f0',
+                    bodyColor: '#94a3b8',
+                    padding: 10,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: (ctx) => {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                            return `${ctx.label}: $${ctx.parsed.toFixed(2)} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Opens the Bank Audit Statement modal, populating charts, metrics, and ledger.
+ */
+window.openBankAudit = () => {
+    const existing = document.getElementById('modal-bank-audit');
+    if (existing) closeBankAudit();
+
+    const metrics = computeFinancialMetrics();
+    const gi = computeFinancialGrade(metrics);
+    const dtiColor = metrics.dtiRatio > 0.8 ? '#ef4444' : metrics.dtiRatio > 0.5 ? '#facc15' : '#4ade80';
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-bank-audit';
+    modal.className = 'audit-modal';
+    modal.innerHTML = `
+        <div class="audit-container" id="audit-printable">
+            <div class="audit-header">
+                <div class="audit-header-row">
+                    <div>
+                        <div class="audit-bank-name">\uD83C\uDFE6 MAV NATIONAL BANK</div>
+                        <div class="audit-subtitle">Official Audit Statement</div>
+                    </div>
+                    <div class="audit-header-right">
+                        <div class="audit-acct-label">Account Holder</div>
+                        <div class="audit-acct-value">${STATE.petName} <span style="opacity:.7">(${STATE.petType})</span></div>
+                        <div class="audit-acct-label" style="margin-top:4px">Statement Period</div>
+                        <div class="audit-acct-value">Day 1 \u2014 Day ${STATE.day}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="audit-section">
+                <div class="audit-charts-grid">
+                    <div class="audit-chart-card">
+                        <h3 class="audit-chart-title">\uD83D\uDCC8 Net Worth Over Time</h3>
+                        <div class="audit-chart-wrap"><canvas id="chart-net-worth"></canvas></div>
+                    </div>
+                    <div class="audit-chart-card">
+                        <h3 class="audit-chart-title">\uD83D\uDCCA Spending Categories</h3>
+                        <div class="audit-chart-wrap"><canvas id="chart-spending"></canvas></div>
+                    </div>
+                </div>
+            </div>
+            <div class="audit-section">
+                <h3 class="audit-section-title">Financial Health Summary</h3>
+                <div class="audit-metrics-grid">
+                    <div class="audit-metric-card audit-grade-card">
+                        <div class="audit-metric-label">Financial Grade</div>
+                        <div class="audit-grade" style="color:${gi.color}">${gi.grade}</div>
+                        <div class="audit-grade-desc">${gi.desc}</div>
+                    </div>
+                    <div class="audit-metric-card">
+                        <div class="audit-metric-label">Savings Rate</div>
+                        <div class="audit-metric-value" style="color:#38bdf8">${metrics.savingsRate.toFixed(1)}%</div>
+                        <div class="audit-metric-sub">of total assets in savings</div>
+                    </div>
+                    <div class="audit-metric-card">
+                        <div class="audit-metric-label">Spend-to-Income</div>
+                        <div class="audit-metric-value" style="color:${dtiColor}">${(metrics.dtiRatio * 100).toFixed(1)}%</div>
+                        <div class="audit-metric-sub">spending vs lifetime earnings</div>
+                    </div>
+                    <div class="audit-metric-card">
+                        <div class="audit-metric-label">Education ROI</div>
+                        <div class="audit-metric-value" style="color:#a78bfa">${metrics.educationROI > 0 ? metrics.educationROI.toFixed(0) + '%' : 'N/A'}</div>
+                        <div class="audit-metric-sub">Lv.${STATE.educationLevel} \u2014 +$${STATE.educationLevel * 5}/chore</div>
+                    </div>
+                </div>
+            </div>
+            <div class="audit-section">
+                <h3 class="audit-section-title">Account Summary</h3>
+                <div class="audit-summary-grid">
+                    <div class="audit-summary-item">
+                        <span class="audit-summary-label">Checking Balance</span>
+                        <span class="audit-summary-value">$${STATE.money.toFixed(2)}</span>
+                    </div>
+                    <div class="audit-summary-item">
+                        <span class="audit-summary-label">Savings Balance</span>
+                        <span class="audit-summary-value">$${STATE.savings.toFixed(2)}</span>
+                    </div>
+                    <div class="audit-summary-item audit-summary-total">
+                        <span class="audit-summary-label">Total Net Worth</span>
+                        <span class="audit-summary-value" style="color:#2dd4bf;font-size:16px">$${(STATE.money + STATE.savings).toFixed(2)}</span>
+                    </div>
+                    <div class="audit-summary-item">
+                        <span class="audit-summary-label">Lifetime Earnings</span>
+                        <span class="audit-summary-value" style="color:#4ade80">$${STATE.lifetimeEarnings.toFixed(2)}</span>
+                    </div>
+                    <div class="audit-summary-item">
+                        <span class="audit-summary-label">Total Expenditures</span>
+                        <span class="audit-summary-value audit-negative">-$${metrics.totalSpending.toFixed(2)}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="audit-section">
+                <h3 class="audit-section-title">Transaction Ledger</h3>
+                <div class="audit-ledger-wrap custom-scrollbar">${buildTransactionLedgerHTML()}</div>
+            </div>
+            <div class="audit-footer">
+                <button onclick="printAudit()" class="audit-btn audit-btn-print">\uD83D\uDDA8\uFE0F Print Audit</button>
+                <button onclick="closeBankAudit()" class="audit-btn audit-btn-close">Close Statement</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    setTimeout(() => { initNetWorthChart(); initSpendingChart(); }, 150);
+};
+
+/**
+ * Closes the Bank Audit modal and cleans up Chart.js instances.
+ */
+window.closeBankAudit = () => {
+    if (netWorthChartInstance) { netWorthChartInstance.destroy(); netWorthChartInstance = null; }
+    if (spendingChartInstance) { spendingChartInstance.destroy(); spendingChartInstance = null; }
+    const modal = document.getElementById('modal-bank-audit');
+    if (modal) modal.remove();
+};
+
+/**
+ * Triggers the browser print dialog for the audit statement.
+ */
+window.printAudit = () => {
+    window.print();
 };
 
 window.currentTutorialStep = -1;
