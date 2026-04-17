@@ -1219,10 +1219,7 @@ function gameOver(reason) {
                 Try Again
             </button>
             <button onclick="downloadReport('${reason}')" class="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-xl transition transform hover:scale-105 shadow-[0_0_30px_rgba(37,99,235,0.5)] pointer-events-auto cursor-pointer flex items-center gap-2">
-                📄 Download PDF Report
-            </button>
-            <button onclick="openBankAudit()" class="px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl font-bold text-xl transition transform hover:scale-105 shadow-[0_0_30px_rgba(45,212,191,0.5)] pointer-events-auto cursor-pointer flex items-center gap-2">
-                📊 Bank Audit
+                📄 Download Bank Audit PDF
             </button>
         </div>
     `;
@@ -1998,80 +1995,253 @@ window.downloadReport = (reason) => {
     }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    const avgHappiness = STATE.tracking.happinessTickCount > 0 ? (STATE.tracking.totalHappinessTicks / STATE.tracking.happinessTickCount).toFixed(1) : 0;
 
-    // Page 1: Statistics
-    doc.setFontSize(22);
-    doc.text("Virtual Pet Caretaker Report", 105, 20, { align: "center" });
+    // ── Compute audit data ──
+    const metrics = computeFinancialMetrics();
+    const gradeInfo = computeFinancialGrade(metrics);
+    const avgHappiness = metrics.avgHappiness.toFixed(1);
+    const netWorth = (STATE.money + STATE.savings).toFixed(2);
 
+    // Helper: draw a horizontal rule
+    const hr = (yPos) => { doc.setDrawColor(180); doc.setLineWidth(0.3); doc.line(20, yPos, 190, yPos); };
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PAGE 1 — Bank Audit Statement
+    // ════════════════════════════════════════════════════════════════════════
+
+    // Header banner
+    doc.setFillColor(15, 118, 110);
+    doc.rect(0, 0, 210, 32, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.text("MAV NATIONAL BANK", 105, 14, { align: "center" });
+    doc.setFontSize(10);
+    doc.text("OFFICIAL AUDIT STATEMENT", 105, 22, { align: "center" });
+    doc.setTextColor(0, 0, 0);
+
+    // Account information
+    doc.setFontSize(11);
+    doc.text(`Account Holder: ${STATE.petName} (${STATE.petType.toUpperCase()})`, 20, 42);
+    doc.text(`Statement Period: Day 1 \u2014 Day ${STATE.day}`, 20, 49);
+    doc.text(`Cause of Closure: ${reason.toUpperCase()}`, 130, 42);
+    doc.text(`Report Date: ${new Date().toLocaleDateString()}`, 130, 49);
+    hr(54);
+
+    // ── Financial Grade ──
     doc.setFontSize(14);
-    doc.text(`Pet Name: ${STATE.petName} (${STATE.petType.toUpperCase()})`, 20, 40);
-    doc.text(`Days Survived: ${STATE.day}`, 20, 50);
-    doc.text(`Cause of Death: ${reason.toUpperCase()}`, 20, 60);
+    doc.text("Financial Grade:", 20, 64);
+    doc.setFontSize(28);
+    doc.text(gradeInfo.grade, 72, 66);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(gradeInfo.desc, 90, 64);
+    doc.setTextColor(0);
+    hr(70);
 
-    doc.setFontSize(16);
-    doc.text("Financials:", 20, 80);
-    doc.setFontSize(12);
-    doc.text(`Total Lifetime Earnings: $${STATE.lifetimeEarnings.toFixed(2)}`, 30, 90);
-    doc.text(`Ending Bank Balance: $${STATE.money.toFixed(2)}`, 30, 100);
-    doc.text(`Ending Savings: $${STATE.savings.toFixed(2)}`, 30, 110);
-    
-    // Spending Breakdown
-    doc.text("Total Spending Breakdown:", 20, 130);
-    let startY = 140;
-    let totalSpend = 0;
+    // ── Account Summary ──
+    doc.setFontSize(13);
+    doc.text("Account Summary", 20, 80);
+    doc.setFontSize(11);
+    const summaryData = [
+        ['Checking Balance', `$${STATE.money.toFixed(2)}`],
+        ['Savings Balance', `$${STATE.savings.toFixed(2)}`],
+        ['Total Net Worth', `$${netWorth}`],
+        ['Lifetime Earnings', `$${STATE.lifetimeEarnings.toFixed(2)}`],
+        ['Total Expenditures', `$${metrics.totalSpending.toFixed(2)}`]
+    ];
+    let sy = 88;
+    summaryData.forEach(([label, val]) => {
+        doc.text(label, 30, sy);
+        doc.text(val, 110, sy);
+        sy += 8;
+    });
+    hr(sy + 2);
+
+    // ── Financial Health Metrics ──
+    doc.setFontSize(13);
+    doc.text("Financial Health Metrics", 20, sy + 12);
+    doc.setFontSize(11);
+    const metricsData = [
+        ['Savings Rate', `${metrics.savingsRate.toFixed(1)}%`, 'of total assets held in savings'],
+        ['Spend-to-Income Ratio', `${(metrics.dtiRatio * 100).toFixed(1)}%`, 'spending vs lifetime earnings'],
+        ['Education ROI', metrics.educationROI > 0 ? `${metrics.educationROI.toFixed(0)}%` : 'N/A', `Lv.${STATE.educationLevel} \u2014 +$${STATE.educationLevel * 5}/chore`],
+        ['Average Happiness', `${avgHappiness}%`, 'weighted average over pet lifetime'],
+        ['Near-Death Scenarios', `${STATE.tracking.nearDeathScenarios}`, 'times a stat dropped below 20%']
+    ];
+    let my = sy + 20;
+    metricsData.forEach(([label, val, note]) => {
+        doc.text(label + ':', 30, my);
+        doc.text(val, 100, my);
+        doc.setTextColor(120);
+        doc.setFontSize(9);
+        doc.text(note, 125, my);
+        doc.setTextColor(0);
+        doc.setFontSize(11);
+        my += 8;
+    });
+    hr(my + 2);
+
+    // ── Spending Breakdown ──
+    doc.setFontSize(13);
+    doc.text("Spending Breakdown", 20, my + 12);
+    doc.setFontSize(11);
+    let sby = my + 20;
+    const catNames = { food: 'Food', toys: 'Toys', education: 'Education', care: 'Healthcare', rent: 'Rent', utilities: 'Utilities' };
     for (let cat in STATE.spending) {
-        let val = STATE.spending[cat];
-        totalSpend += val;
-        doc.text(`- ${cat.charAt(0).toUpperCase() + cat.slice(1)}: $${val.toFixed(2)}`, 30, startY);
-        startY += 10;
+        const val = STATE.spending[cat];
+        const pct = metrics.totalSpending > 0 ? ((val / metrics.totalSpending) * 100).toFixed(1) : '0.0';
+        doc.text(`${catNames[cat] || cat}:`, 30, sby);
+        doc.text(`$${val.toFixed(2)}`, 90, sby);
+        doc.setTextColor(120);
+        doc.setFontSize(9);
+        doc.text(`(${pct}%)`, 115, sby);
+        doc.setTextColor(0);
+        doc.setFontSize(11);
+        sby += 8;
     }
-    doc.text(`Total Spent: $${totalSpend.toFixed(2)}`, 30, startY + 5);
+    doc.text(`Total Spent: $${metrics.totalSpending.toFixed(2)}`, 30, sby + 3);
 
-    doc.setFontSize(16);
-    doc.text("Care Stats:", 110, 80);
-    doc.setFontSize(12);
-    doc.text(`Average Happiness: ${avgHappiness}%`, 120, 90);
-    doc.text(`Near-Death Scenarios Avoided: ${STATE.tracking.nearDeathScenarios}`, 120, 100);
-
-    let rating = "C";
-    if (STATE.day > 10 && avgHappiness > 80 && STATE.tracking.nearDeathScenarios < 3) rating = "A+";
-    else if (STATE.day > 7 && avgHappiness > 70) rating = "A";
-    else if (STATE.day > 4 && avgHappiness > 60) rating = "B";
-    else if (STATE.day <= 2) rating = "F";
-
-    doc.setFontSize(16);
-    doc.text(`Overall Caretaker Rating: ${rating}`, 110, 120);
-
-    // Page 2: Math/Formulas
+    // ════════════════════════════════════════════════════════════════════════
+    // PAGE 2 — Transaction Ledger
+    // ════════════════════════════════════════════════════════════════════════
     doc.addPage();
-    doc.setFontSize(22);
-    doc.text("Game Mechanics & Metrics Math", 105, 20, { align: "center" });
+
+    doc.setFillColor(15, 118, 110);
+    doc.rect(0, 0, 210, 20, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.text("Transaction Ledger", 105, 13, { align: "center" });
+    doc.setTextColor(0);
+
+    if (STATE.transactions.length === 0) {
+        doc.setFontSize(11);
+        doc.text("No transactions recorded.", 20, 35);
+    } else {
+        // Table header
+        doc.setFillColor(230, 235, 240);
+        doc.rect(15, 25, 180, 8, 'F');
+        doc.setFontSize(9);
+        doc.setTextColor(60);
+        doc.text("DAY", 18, 30);
+        doc.text("TIME", 38, 30);
+        doc.text("CATEGORY", 65, 30);
+        doc.text("DESCRIPTION", 100, 30);
+        doc.text("AMOUNT", 170, 30);
+        doc.setTextColor(0);
+
+        let ty = 38;
+        const maxPerPage = 30;
+        STATE.transactions.forEach((t, idx) => {
+            if (ty > 275) {
+                doc.addPage();
+                // Repeat header on new page
+                doc.setFillColor(230, 235, 240);
+                doc.rect(15, 10, 180, 8, 'F');
+                doc.setFontSize(9);
+                doc.setTextColor(60);
+                doc.text("DAY", 18, 15);
+                doc.text("TIME", 38, 15);
+                doc.text("CATEGORY", 65, 15);
+                doc.text("DESCRIPTION", 100, 15);
+                doc.text("AMOUNT", 170, 15);
+                doc.setTextColor(0);
+                ty = 24;
+            }
+
+            // Alternating row shading
+            if (idx % 2 === 0) {
+                doc.setFillColor(248, 250, 252);
+                doc.rect(15, ty - 4, 180, 7, 'F');
+            }
+
+            const hrs = Math.floor((t.time || 0) / 60);
+            const mins = (t.time || 0) % 60;
+            const period = hrs >= 12 ? 'PM' : 'AM';
+            const dh = hrs % 12 || 12;
+            const timeStr = `${dh}:${mins.toString().padStart(2, '0')} ${period}`;
+
+            const sign = t.amount >= 0 ? '+' : '';
+            const amountStr = `${sign}$${Math.abs(t.amount).toFixed(2)}`;
+
+            doc.setFontSize(9);
+            doc.text(`Day ${t.day}`, 18, ty);
+            doc.text(timeStr, 38, ty);
+            doc.text(t.category, 65, ty);
+            doc.text(t.description.substring(0, 35), 100, ty);
+
+            // Color-code amounts
+            if (t.amount >= 0) { doc.setTextColor(22, 163, 74); }
+            else { doc.setTextColor(220, 38, 38); }
+            doc.text(amountStr, 170, ty);
+            doc.setTextColor(0);
+
+            ty += 7;
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PAGE 3 — Game Mechanics & Grading Rubric
+    // ════════════════════════════════════════════════════════════════════════
+    doc.addPage();
+
+    doc.setFillColor(15, 118, 110);
+    doc.rect(0, 0, 210, 20, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.text("Game Mechanics & Grading Rubric", 105, 13, { align: "center" });
+    doc.setTextColor(0);
+
+    doc.setFontSize(11);
+    let y = 32;
+    doc.text("1. Lifetime Earnings: Sum of all chore rewards and savings interest.", 20, y); y+=12;
+    doc.text("2. Average Happiness: Sum of Happiness per tick / Total Ticks Alive.", 20, y); y+=12;
+    doc.text("3. Near-Death Scenarios: Increments when any stat drops below 20%.", 20, y); y+=8;
+    doc.text("     Resets when stat recovers above 20% (one count per episode).", 20, y); y+=12;
+    doc.text(`4. Chore Rewards: Base ranges from $${CHORE_CONFIG.dusting?.reward||6} to $${CHORE_CONFIG.floors?.reward||120}.`, 20, y); y+=8;
+    doc.text("     Actual = Base Reward + (Education Level \u00D7 5).", 20, y); y+=12;
+    doc.text("5. Interest: Savings \u00D7 0.02 (2%) awarded every 60 seconds.", 20, y); y+=12;
+    doc.text("6. Stat Decay per tick:", 20, y); y+=8;
+    doc.text(`     Hunger: -${CONFIG.decayRates.hunger}   Energy: -${CONFIG.decayRates.energy}   Hygiene: -${CONFIG.decayRates.hygiene}   Happiness: -${CONFIG.decayRates.happiness}`, 30, y); y+=8;
+    doc.text("     Happiness decay \u00D71.5 if Hunger < 40, \u00D71.2 if Hygiene < 40.", 30, y); y+=15;
+
+    hr(y); y += 8;
+    doc.setFontSize(13);
+    doc.text("Financial Grading Rubric", 20, y); y += 10;
+    doc.setFontSize(10);
+
+    const rubric = [
+        ['A+', 'Day > 10, Savings >= $200, Education >= Lv.2, Savings Rate > 30%, Avg Happiness > 80%'],
+        ['A',  'Day > 7, Savings >= $100, Education >= Lv.1, Savings Rate > 20%, Avg Happiness > 70%'],
+        ['B+', 'Day > 5, Savings >= $50, Avg Happiness > 60%'],
+        ['B',  'Day > 4, Avg Happiness > 50%'],
+        ['C',  'Day > 2 (baseline survival)'],
+        ['F',  'Day <= 2 or unmet criteria']
+    ];
+    rubric.forEach(([grade, criteria]) => {
+        doc.setFontSize(12);
+        doc.text(grade, 25, y);
+        doc.setFontSize(10);
+        doc.text(criteria, 40, y);
+        y += 9;
+    });
+
+    const pdfBlob = doc.output('blob');
+    const blobUrl = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.style.display = 'none';
+    link.href = blobUrl;
+    link.download = 'Virtual_Pet_Audit.pdf';
+    document.body.appendChild(link);
     
-    doc.setFontSize(12);
-    let y = 40;
-    doc.text("1. Lifetime Earnings: Sum of all salary, chore rewards, and interest.", 20, y); y+=15;
-    doc.text("2. Average Happiness: Sum of Happiness per second / Total Seconds Alive.", 20, y); y+=15;
-    doc.text("3. Near-Death Scenarios: Counter increments whenever a stat drops below 20%.", 20, y); y+=10;
-    doc.text("     It only increments once per drop episode (resets when stat raises >= 20%).", 20, y); y+=15;
-    doc.text(`4. Chore Rewards: Ranges from $${CHORE_CONFIG.dusting?.reward||6} to $${CHORE_CONFIG.floors?.reward||120}.`, 20, y); y+=10;
-    doc.text("     Actual = Base Reward + (Education Level * 5).", 20, y); y+=15;
-    doc.text("5. Interest: Savings * 0.02 (2%) awarded every minute.", 20, y); y+=15;
-    doc.text("6. Stat Decay per second:", 20, y); y+=10;
-    doc.text(`     - Hunger: -${CONFIG.decayRates.hunger}`, 30, y); y+=8;
-    doc.text(`     - Energy: -${CONFIG.decayRates.energy}`, 30, y); y+=8;
-    doc.text(`     - Hygiene: -${CONFIG.decayRates.hygiene}`, 30, y); y+=8;
-    doc.text(`     - Happiness: -${CONFIG.decayRates.happiness} (Increases by 1.5x if Hunger < 40,`, 30, y); y+=8;
-    doc.text(`                   and 1.2x if Hygiene < 40).`, 30, y); y+=15;
-
-    doc.text("7. Rating Formula:", 20, y); y+=10;
-    doc.text("     - A+: Day > 10, Avg Happiness > 80%, Near Death < 3", 30, y); y+=8;
-    doc.text("     - A: Day > 7, Avg Happiness > 70%", 30, y); y+=8;
-    doc.text("     - B: Day > 4, Avg Happiness > 60%", 30, y); y+=8;
-    doc.text("     - C: Default Survival if > Day 2", 30, y); y+=8;
-    doc.text("     - F: Day <= 2", 30, y); y+=8;
-
-    doc.save("Virtual_Pet_Care_Report.pdf");
+    // Defer the click until the <a> tag is fully registered by the browser DOM.
+    // This correctly enforces the download attribute in strict Chromium/Edge environments.
+    requestAnimationFrame(() => {
+        link.click();
+        setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+        }, 3000);
+    });
 };
 
 // ─── Bank Audit System ──────────────────────────────────────────────────────
