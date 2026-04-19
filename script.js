@@ -59,33 +59,44 @@ const STATE = {
     gameOver: false
 };
 
-// ─── Save / Load / Reset System ─────────────────────────────────────────────
+// === CORE SYSTEM: PERSISTENCE ===
 
-/** Deep-copy of initial STATE used as fallback defaults during hydration. */
+/**
+ * @description The factory default state snapshot. Deep cloned at runtime.
+ * @constant {Object}
+ */
 const DEFAULT_STATE = JSON.parse(JSON.stringify(STATE));
 
 const SAVE_KEY = 'MAVPet_SaveData';
 
 /**
- * Records a financial transaction in the STATE ledger.
- * @param {string} category - Transaction category (e.g., 'Income', 'Food', 'Rent').
- * @param {string} description - Human-readable description.
- * @param {number} amount - Positive for income, negative for expense.
+ * Logs a finalized monetary transaction into the player's historical ledger.
+ *
+ * @param {string} category - Classification subset (e.g., 'Income').
+ * @param {string} description - Readable log output for audit statements.
+ * @param {number} amount - The numeric delta adjusted in the account.
+ * @returns {void}
  */
 function recordTransaction(category, description, amount) {
     STATE.transactions.push({ day: STATE.day, time: STATE.gameTime, category, description, amount });
 }
 
 /**
- * Snapshots current net worth into the history tracker for charting.
+ * Emits a snapshot of the player's total cumulative fiat assets.
+ * Evaluated historically within global graphs.
+ * 
+ * @returns {void}
  */
 function recordNetWorth() {
     STATE.netWorthHistory.push({ day: STATE.day, netWorth: STATE.money + STATE.savings });
 }
 
 /**
- * Serializes the current STATE object to localStorage.
- * Called automatically on every game tick and after major state changes.
+ * Serializes global environment constructs to persistent storage memory.
+ * Operations invoke standard error suppression.
+ *
+ * @returns {void}
+ * @throws {Error} Will intercept and log warnings gracefully.
  */
 function saveGameState() {
     try {
@@ -97,12 +108,12 @@ function saveGameState() {
 }
 
 /**
- * Recursively merges saved data onto a defaults object.
- * Ensures missing keys in a partial save still get default values.
+ * Safely transverses nested states mapping loaded parameters to pristine defaults.
+ * Resilient against partial save states from earlier software releases.
  *
- * @param {Object} defaults - The DEFAULT_STATE reference.
- * @param {Object} saved    - The parsed save data.
- * @returns {Object} The merged result.
+ * @param {Object} defaults - Pristine reference schema.
+ * @param {Object} saved - Retrieved persistence schema payload.
+ * @returns {Object} Deep-merged memory graph context.
  */
 function deepMerge(defaults, saved) {
     const result = {};
@@ -125,10 +136,10 @@ function deepMerge(defaults, saved) {
 }
 
 /**
- * Validates critical numeric stats are within expected bounds.
- *
- * @param {Object} data - The hydrated state data to validate.
- * @returns {boolean} True if data is valid and safe to use.
+ * Ensures strict typing bounds verifying saved parameters aren't corrupted.
+ * 
+ * @param {Object} data - Transient payload object to scrutinize.
+ * @returns {boolean} Whether validation confirms an intact game struct.
  */
 function validateSaveData(data) {
     // Ensure core properties are the right type
@@ -148,8 +159,10 @@ function validateSaveData(data) {
 }
 
 /**
- * Attempts to load and hydrate STATE from localStorage.
- * Returns true if a valid save was found and restored, false otherwise.
+ * Engages global system bootstrap utilizing localStorage payload records.
+ * Generates initial tick deltas mapping game resumption state.
+ *
+ * @returns {boolean} True if the hydration operation finalized securely.
  */
 function loadGameState() {
     try {
@@ -180,7 +193,9 @@ function loadGameState() {
 }
 
 /**
- * Clears all saved data and reloads the page for a fresh demo.
+ * Fully purges environment variables triggering system-level interface wipe.
+ *
+ * @returns {void}
  */
 function resetGame() {
     localStorage.removeItem(SAVE_KEY);
@@ -253,11 +268,11 @@ const CHORE_CONFIG = {
 };
 
 /**
- * Generates a unique ID for chore instances based on their base ID and room.
+ * Resolves deterministic global chore mapping unique identifier identifiers.
  *
- * @param {string} baseId - The base identifier for the chore.
- * @param {string} room - The room the chore is located in.
- * @returns {string} The unique chore instance ID.
+ * @param {string} baseId - Core mapping tag.
+ * @param {string} room - Physical domain string matching room keys.
+ * @returns {string} Fully qualified instance mapping layout string.
  */
 const getChoreInstanceId = (baseId, room) => {
     const cfg = CHORE_CONFIG[baseId];
@@ -266,10 +281,10 @@ const getChoreInstanceId = (baseId, room) => {
 };
 
 /**
- * Calculates the total reward for a chore, including any education bonuses.
+ * Extracts and transforms chore baseline compensation by parsing player education attributes.
  *
- * @param {string} baseId - The base identifier for the chore.
- * @returns {number} The calculated reward amount.
+ * @param {string} baseId - Core mapping tag utilized array searching.
+ * @returns {number} Computed positive compensation integral.
  */
 const getChoreReward = (baseId) => {
     const cfg = CHORE_CONFIG[baseId];
@@ -286,9 +301,10 @@ let decayInterval, interestInterval;
 
 
 /**
- * Initializes the game state and UI when a pet is chosen.
+ * Bootstraps runtime application instances post character election logic.
  *
- * @param {string} type - The selected pet type ('dog', 'cat', or 'rabbit').
+ * @param {string} type - Core enum ('dog', 'cat', 'rabbit').
+ * @returns {void}
  */
 window.startGame = (type) => {
     // Add Stop Propagation listeners to all prevented elements
@@ -330,7 +346,9 @@ window.startGame = (type) => {
 };
 
 /**
- * Resumes a previously saved game session, bypassing the start screen.
+ * Escalates core bootstrap procedures, immediately delegating previously populated contexts.
+ *
+ * @returns {void}
  */
 window.resumeGame = () => {
     document.querySelectorAll('.prevent-click-through').forEach(el => {
@@ -356,7 +374,10 @@ window.resumeGame = () => {
 };
 
 /**
- * Initializes the Three.js scene, camera, renderer, and lighting setup.
+ * Mounts standard WebGL Three.js orchestration dependencies.
+ * Establishes perspective, geometry pipelines, and lighting constraints.
+ * 
+ * @returns {void}
  */
 function initThreeJS() {
     const container = document.getElementById('canvas-container');
@@ -393,7 +414,9 @@ function initThreeJS() {
 }
 
 /**
- * Handles window resize events to maintain responsive 3D view aspect ratios.
+ * Syncs canvas viewport constraints against browser native resize intercepts.
+ * 
+ * @returns {void}
  */
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -402,7 +425,9 @@ function onWindowResize() {
 }
 
 /**
- * Builds the current room's 3D environment, generating walls and specific fixtures.
+ * Programmatically destructs and rebuilds 3D environment nodes mapped to room navigation states.
+ * 
+ * @returns {void}
  */
 function buildRoom() {
     if (roomGroup) scene.remove(roomGroup);
@@ -493,9 +518,10 @@ function buildRoom() {
 }
 
 /**
- * Spawns interactive chore objects within the 3D scene based on the specified room.
+ * Orchestrates rendering mapping protocols for interactive chore manifestations.
  *
- * @param {string} room - The room type to generate chores for.
+ * @param {string} room - Active domain context.
+ * @returns {void}
  */
 function setupChores(room) {
     const makeInteractable = (mesh, baseId, subId) => {
@@ -628,16 +654,17 @@ function setupChores(room) {
 }
 
 /**
- * Creates functional door objects for room transitions.
+ * Assembles architectural bounding box gateways establishing cross-room navigational vectors.
  *
- * @param {number} x - Local x coordinate.
- * @param {number} y - Local y coordinate.
- * @param {number} z - Local z coordinate.
- * @param {number} rotationY - Door rotation along the Y-axis.
- * @param {string} targetRoom - The destination room upon interaction.
- * @param {number} colorHex - Base hex color for door accenting.
- * @param {number} [frameColor=0x1e293b] - Frame hex color.
- * @param {number} [panelColor=0x64748b] - Panel hex color.
+ * @param {number} x - Vector x coordinate translation.
+ * @param {number} y - Vector y coordinate translation.
+ * @param {number} z - Vector z coordinate translation.
+ * @param {number} rotationY - Euler rotation constraint isolating Y-axis pivot.
+ * @param {string} targetRoom - Target enum route identifier matching DOM room nodes.
+ * @param {number} colorHex - Base hexadecimal integer for core door accent.
+ * @param {number} [frameColor=0x1e293b] - Hexadecimal integer isolating door molding.
+ * @param {number} [panelColor=0x64748b] - Hexadecimal integer isolating door pane.
+ * @returns {void}
  */
 function createDoor(x, y, z, rotationY, targetRoom, colorHex, frameColor = 0x1e293b, panelColor = 0x64748b) {
     const doorGroup = new THREE.Group();
@@ -693,14 +720,15 @@ function createDoor(x, y, z, rotationY, targetRoom, colorHex, frameColor = 0x1e2
 }
 
 /**
- * Creates visual window objects for aesthetic and lighting enhancement.
+ * Binds geometric visual portals acting as ambient environmental light diffusers.
  *
- * @param {number} x - Local x coordinate.
- * @param {number} y - Local y coordinate.
- * @param {number} z - Local z coordinate.
- * @param {number} rotationY - Object rotation around Y-axis.
- * @param {number} [width=3] - Window width.
- * @param {number} [height=4] - Window height.
+ * @param {number} x - Origin scalar x position.
+ * @param {number} y - Origin scalar y position.
+ * @param {number} z - Origin scalar z position.
+ * @param {number} rotationY - Transform orientation mapping.
+ * @param {number} [width=3] - Scalable dimension modifier along x-axis.
+ * @param {number} [height=4] - Scalable dimension modifier along y-axis.
+ * @returns {void}
  */
 function createWindow(x, y, z, rotationY, width = 3, height = 4) {
     const winGroup = new THREE.Group();
@@ -736,7 +764,9 @@ function createWindow(x, y, z, rotationY, width = 3, height = 4) {
 }
 
 /**
- * Generates and positions complex bathroom fixture geometries including sink, toilet, tub, and mirror.
+ * Renders high-fidelity mesh hierarchies strictly corresponding to sanitary amenities.
+ * 
+ * @returns {void}
  */
 function createBathroomFixtures() {
     const tubGroup = new THREE.Group();
@@ -778,14 +808,15 @@ function createBathroomFixtures() {
 }
 
 /**
- * Generates versatile furniture geometries like sofas or generic placeholder blocks.
+ * Instantiates customizable volumetric furniture models.
  *
- * @param {number} x - Local x position.
- * @param {number} y - Local y position.
- * @param {number} z - Local z position.
- * @param {number} color - Hexadecimal color code.
- * @param {string} type - Identifier for specific geometry type (e.g. "Sofa").
- * @param {number} [rotationY=0] - Initial y-axis rotation.
+ * @param {number} x - X-axis global offset.
+ * @param {number} y - Y-axis global offset.
+ * @param {number} z - Z-axis global offset.
+ * @param {number} color - Texture base standard map albedo hex.
+ * @param {string} type - Distinct routing key mapping structural subsets.
+ * @param {number} [rotationY=0] - Rotational pivot mapping.
+ * @returns {void}
  */
 function createFurniture(x, y, z, color, type, rotationY = 0) {
     const group = new THREE.Group();
@@ -809,7 +840,9 @@ function createFurniture(x, y, z, color, type, rotationY = 0) {
 }
 
 /**
- * Provides all bedroom fixtures, particularly focusing on the interactive bed used for resting.
+ * Loads bedroom models and hooks resting state interactive volumes.
+ * 
+ * @returns {void}
  */
 function createBedroomFixtures() {
     const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f });
@@ -840,7 +873,9 @@ function createBedroomFixtures() {
 }
 
 /**
- * Sets up the kitchen visual geometry and interactive fridge components.
+ * Deploys kitchen scene nodes wrapping culinary processing architectures.
+ * 
+ * @returns {void}
  */
 function createKitchenFixtures() {
     const chromeMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.6, roughness: 0.3 });
@@ -924,11 +959,12 @@ function createKitchenFixtures() {
 }
 
 /**
- * Generates the computer object which accesses the marketplace.
+ * Injects marketplace terminal mesh generating UI interactions mapping to e-commerce modal.
  *
- * @param {number} x - Local x position.
- * @param {number} y - Local y position.
- * @param {number} z - Local z position.
+ * @param {number} x - Core mapping origin local x.
+ * @param {number} y - Core mapping origin local y.
+ * @param {number} z - Core mapping origin local z.
+ * @returns {void}
  */
 function createComputer(x, y, z) {
     const group = new THREE.Group(); group.position.set(x, y, z);
@@ -948,7 +984,9 @@ function createComputer(x, y, z) {
 }
 
 /**
- * Spawns the user's unlocked toys and decor into the Living Room.
+ * Hydrates unlocked dynamic decorative entities into the active scene graph based on player inventory.
+ * 
+ * @returns {void}
  */
 function renderToys() {
     // Render unlocked savings rewards
@@ -989,7 +1027,9 @@ function renderToys() {
 }
 
 /**
- * Constructs the 3D pet character geometry based on the selected pet type.
+ * Assembles and paints specialized character avatar geometry mapping to discrete pet typologies.
+ * 
+ * @returns {void}
  */
 function buildPet() {
     if (petGroup) scene.remove(petGroup);
@@ -1264,7 +1304,9 @@ function updateUI() {
 }
 
 /**
- * Determines the pet's current emotion based on stats and updates animations/emojis.
+ * Evaluates core stat deltas extracting specific emotional bounds and triggering localized avatar updates.
+ * 
+ * @returns {void}
  */
 function updatePetBehavior() {
     let emotion = "Happy";
@@ -1292,7 +1334,9 @@ function updatePetBehavior() {
 }
 
 /**
- * Iterates through game time and controls the global lighting/fog based on time of day.
+ * Mutates global directional light attenuation and fog density corresponding to procedural game-time.
+ * 
+ * @returns {void}
  */
 function updateEnvironment() {
     if (!scene) return;
@@ -1305,9 +1349,10 @@ function updateEnvironment() {
 }
 
 /**
- * Submits raycasting collision detection to identify click interactivity.
+ * Emits raycasting vector calculation to resolve volumetric collision detecting interactive targets.
  *
- * @param {MouseEvent} event - The mouse click event.
+ * @param {MouseEvent} event - DOM mouse click propagation.
+ * @returns {void}
  */
 function onMouseClick(event) {
     if (event.target.tagName !== 'CANVAS') return;
@@ -1331,9 +1376,10 @@ function onMouseClick(event) {
 }
 
 /**
- * Computes raycasting collision to provide tooltip hover info on interactive objects.
+ * Interpolates vector projection to dynamically assess hover states on three-dimensional colliders.
  *
- * @param {MouseEvent} event - The mouse movement event.
+ * @param {MouseEvent} event - DOM mouse position intercept.
+ * @returns {void}
  */
 function onMouseMove(event) {
     const tooltip = document.getElementById('tooltip');
@@ -1381,10 +1427,10 @@ function onMouseMove(event) {
 }
 
 /**
- * Resolves proper tooltip text parsed from an object's provided UserData.
+ * Parses context strings linked via Three.js node UserData schemas.
  *
- * @param {Object} data - The internal user data payload of the interaction object.
- * @returns {string|null} The tooltip text to display, or null if invalid.
+ * @param {Object} data - Transient string dictionary tied to a mesh object.
+ * @returns {string|null} Localized string mapped payload, null if missing mapping.
  */
 function getTooltipText(data) {
     if (!data.action) return null;
@@ -1406,10 +1452,11 @@ function getTooltipText(data) {
 }
 
 /**
- * Central routing method to compute specific logic for interactive object actions.
+ * Global dispatch routing layer assessing strings against bounded action behaviors.
  *
- * @param {string} action - Action identifier formatted string.
- * @param {THREE.Object3D} [object] - The 3D object triggering the interaction.
+ * @param {string} action - Unpacked identifier scalar correlating to a method.
+ * @param {THREE.Object3D} [object] - Native WebGL object emitting the invocation trigger.
+ * @returns {void}
  */
 function handleInteraction(action, object) {
     if (!action) return;
@@ -1550,9 +1597,10 @@ function handleInteraction(action, object) {
 }
 
 /**
- * Transitions the camera and environment to a specified room.
+ * Intercepts spatial navigational calls rebinding global scene boundaries.
  *
- * @param {string} roomName - Global string identifier of the room to switch to.
+ * @param {string} roomName - Key linked to environmental room layout nodes.
+ * @returns {void}
  */
 window.changeRoom = (roomName) => {
     // Legacy: if 'work' was a room, redirect
@@ -1565,7 +1613,9 @@ window.changeRoom = (roomName) => {
 };
 
 /**
- * Legacy work function. Triggers simple logic as functional fallback.
+ * Deprecated synchronous progression callback testing simple stat depreciation constraints.
+ * 
+ * @returns {void}
  */
 function doWork() {
 
@@ -1577,16 +1627,19 @@ function doWork() {
 }
 
 /**
- * Globally assigned UI action to close modal interfaces by their ID.
+ * Hard-terminates visibility attributes mapping back to active window nodes.
  *
- * @param {string} id - The DOM identifier of the modal element.
+ * @param {string} id - Identifier correlating to the target view to close.
+ * @returns {void}
  */
 window.closeModal = (id) => {
     document.getElementById(id).classList.add('hidden');
 };
 
 /**
- * Toggles the visibility of the primary HUD to clear visual space.
+ * Safely inverts display constraints cascading completely across all HUD DOM references.
+ * 
+ * @returns {void}
  */
 window.toggleUI = () => {
     STATE.uiHidden = !STATE.uiHidden;
@@ -1610,10 +1663,11 @@ window.toggleUI = () => {
 };
 
 /**
- * Handles transactional purchases for market items.
+ * Validates fiat bounds intercepting generic logic for item injections natively.
  *
- * @param {string} type - Identifier mapping to the item to be bought.
- * @param {number} cost - The currency amount to deduct.
+ * @param {string} type - Identifier dictating categorical stock logic mutations.
+ * @param {number} cost - Value evaluated against the unified banking ledger.
+ * @returns {void}
  */
 window.buyItem = (type, cost) => {
     if (STATE.money >= cost) {
@@ -1640,7 +1694,9 @@ window.buyItem = (type, cost) => {
 };
 
 /**
- * Submits transaction to upgrade the player's intrinsic education tier.
+ * Escalates base educational tier indices modifying subsequent chore payout parameters natively.
+ * 
+ * @returns {void}
  */
 window.buyEducation = () => {
     const cost = 50;
@@ -1657,7 +1713,9 @@ window.buyEducation = () => {
 };
 
 /**
- * Interacts with checking/savings subsystem to securely deposit available funds.
+ * Relocates transient assets transforming them firmly into yielding banking ledger subsets.
+ * 
+ * @returns {void}
  */
 window.depositSavings = () => {
     const el = document.getElementById('deposit-amount');
@@ -1677,7 +1735,9 @@ window.depositSavings = () => {
 };
 
 /**
- * Interacts with checking/savings subsystem to securely withdraw saved funds.
+ * Diverts locked banking funds resolving them backwards toward the transient wallet node.
+ * 
+ * @returns {void}
  */
 window.withdrawSavings = () => {
     const el = document.getElementById('deposit-amount');
@@ -1731,16 +1791,19 @@ function checkSavingsRewards() {
 }
 
 /**
- * Explicit trigger for recalculating internal fridge components.
+ * Triggers DOM synchronization parsing active static inventory variables against fridge container hooks.
+ * 
+ * @returns {void}
  */
 window.checkFridge = () => {
     updateFridgeUI();
 };
 
 /**
- * Initiates ingestion sequence for an available inventory item.
+ * Simulates volumetric consumption delegating to corresponding character stats.
  *
- * @param {string} type - Type of inventory item to process.
+ * @param {string} type - Identifier linked to consumable inventory models.
+ * @returns {void}
  */
 window.consumeItem = (type) => {
     if (type === 'food') {
@@ -1761,7 +1824,9 @@ window.consumeItem = (type) => {
 };
 
 /**
- * Syncs the fridge interaction UI with the state data structure.
+ * Recalculates visual quantity metrics mapping active inventory limits down to DOM labels.
+ * 
+ * @returns {void}
  */
 function updateFridgeUI() {
     document.getElementById('stock-food').innerText = STATE.inventory.food;
@@ -1769,9 +1834,10 @@ function updateFridgeUI() {
 }
 
 /**
- * Projects floating confirmation strings overlaying the 3D interaction space.
+ * Orchestrates transient graphical text nodes rendering at explicit collision points.
  *
- * @param {string} text - Desired notification phrase.
+ * @param {string} text - Payload string for localized overlay display.
+ * @returns {void}
  */
 let indicatorTimeout;
 function showActionIndicator(text) {
@@ -1784,7 +1850,9 @@ function showActionIndicator(text) {
 }
 
 /**
- * Evaluates active global vs local chore metrics and mutates the visual sidebar DOM stack.
+ * Interrogates persistence trees rendering comparative progress DOM widgets globally scaling context.
+ * 
+ * @returns {void}
  */
 function updateTaskSidebar() {
     const list = document.getElementById('task-list-content'); if (!list) return;
@@ -1838,9 +1906,10 @@ function updateTaskSidebar() {
 }
 
 /**
- * Triggers a localized particle emission sequence to signify wealth generation.
+ * Emits volatile billboard particles visually indicating financial acquisition deltas.
  *
- * @param {THREE.Vector3} pos - Origin coordinate of the particle system.
+ * @param {THREE.Vector3} pos - Geometric origin locus triggering spatial emission.
+ * @returns {void}
  */
 function spawnMoneyParticles(pos) {
     if (!scene || !camera) return;
@@ -1854,10 +1923,11 @@ function spawnMoneyParticles(pos) {
 }
 
 /**
- * Pushes ephemeral toast messages to the global notification stack.
+ * Enqueues contextual DOM overlays conveying immediate system-state notifications.
  *
- * @param {string} msg - Information text inside the toast.
- * @param {string} [type='info'] - Classification subset designating color and behavior.
+ * @param {string} msg - Human-readable communication string.
+ * @param {string} [type='info'] - Tailored enumeration scaling warning weights explicitly.
+ * @returns {void}
  */
 function showNotification(msg, type = 'info') {
     const container = document.getElementById('notification-area'); if (!container) return;
@@ -1877,7 +1947,9 @@ function showNotification(msg, type = 'info') {
 }
 
 /**
- * Primary 3D orchestration loop delegating scene calculation to the current renderer.
+ * Recurses high-frequency draw calls computing per-frame geometric transformations cleanly.
+ * 
+ * @returns {void}
  */
 function animate() {
     if (petGroup) { petGroup.rotation.y += 0.01; }
@@ -1885,9 +1957,10 @@ function animate() {
 }
 
 /**
- * Initiates conditional object animations bound to specific programmatic interactions.
+ * Dispatches rigid-body character procedural skeletal animations correlated to predefined intents.
  *
- * @param {string} type - Descriptive identifier mapped to an inherent reaction.
+ * @param {string} type - Key distinguishing between distinct skeletal interpolations.
+ * @returns {void}
  */
 function triggerPetReaction(type) {
     if (!petGroup) return;
@@ -1993,8 +2066,9 @@ function spawnEmoteParticle(emoji) {
 // a transaction ledger, refined grading, and print/export capability.
 
 /**
- * Computes financial health metrics from current STATE data.
- * @returns {Object} Metrics object with savings rate, DTI, education ROI, avg happiness.
+ * Aggregates runtime persistent state metrics resolving bounded financial health indices.
+ * 
+ * @returns {Object} JSON payload populated with ratio and ROI metrics.
  */
 function computeFinancialMetrics() {
     const totalSpending = Object.values(STATE.spending).reduce((a, b) => a + b, 0);
@@ -2016,11 +2090,11 @@ function computeFinancialMetrics() {
 }
 
 /**
- * Computes financial grade using a rigorous rubric.
- * Grade A requires maintaining a savings buffer and high education investment.
+ * Resolves static threshold rubrics distilling granular financial metrics into overarching tier grades.
+ * Strict conditions require concurrent liquidity and proactive education spending.
  *
- * @param {Object} m - Output of computeFinancialMetrics().
- * @returns {Object} { grade, color, desc }
+ * @param {Object} m - Upstream metric payload.
+ * @returns {Object} Presentation-ready mapped tuple dictating UI aesthetics and classification.
  */
 function computeFinancialGrade(m) {
     if (STATE.day > 10 && STATE.savings >= 200 && STATE.educationLevel >= 2 &&
@@ -2039,8 +2113,9 @@ function computeFinancialGrade(m) {
 }
 
 /**
- * Generates HTML for the scrollable transaction ledger table.
- * @returns {string} Complete HTML table or empty-state message.
+ * Constructs dynamic DOM layout strings projecting tabular historical ledger structures.
+ * 
+ * @returns {string} Validated layout HTML strings mapped to application state.
  */
 function buildTransactionLedgerHTML() {
     if (STATE.transactions.length === 0) {
@@ -2073,7 +2148,9 @@ let netWorthChartInstance = null;
 let spendingChartInstance = null;
 
 /**
- * Initializes the Net Worth Over Time line chart using Chart.js.
+ * Instantiates responsive temporal Chart.js projection canvasing historical net growth arrays.
+ * 
+ * @returns {void}
  */
 function initNetWorthChart() {
     const canvas = document.getElementById('chart-net-worth');
@@ -2142,7 +2219,9 @@ function initNetWorthChart() {
 }
 
 /**
- * Initializes the Spending Categories doughnut chart using Chart.js.
+ * Instantiates comparative categorical Chart.js views projecting segmented outflow magnitudes.
+ * 
+ * @returns {void}
  */
 function initSpendingChart() {
     const canvas = document.getElementById('chart-spending');
@@ -2197,7 +2276,10 @@ function initSpendingChart() {
 }
 
 /**
- * Opens the Bank Audit Statement modal, populating charts, metrics, and ledger.
+ * Forces visibility onto the unified audit viewport while synchronizing downstream dependency updates.
+ * 
+ * @param {string|null} [reason=null] - Optional strict string signaling closure parameters.
+ * @returns {void}
  */
 window.openBankAudit = (reason = null) => {
     const existing = document.getElementById('modal-bank-audit');
@@ -2305,7 +2387,9 @@ window.openBankAudit = (reason = null) => {
 };
 
 /**
- * Closes the Bank Audit modal and cleans up Chart.js instances.
+ * Disposes native charting dependencies strictly mitigating memory leakage before detaching DOM nodes.
+ * 
+ * @returns {void}
  */
 window.closeBankAudit = () => {
     if (netWorthChartInstance) { netWorthChartInstance.destroy(); netWorthChartInstance = null; }
@@ -2315,7 +2399,9 @@ window.closeBankAudit = () => {
 };
 
 /**
- * Triggers the browser print dialog for the audit statement.
+ * Invokes native system print spoolers configured to target specific document nodes.
+ * 
+ * @returns {void}
  */
 window.printAudit = () => {
     window.print();
