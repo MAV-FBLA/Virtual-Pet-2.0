@@ -70,6 +70,37 @@ const DEFAULT_STATE = JSON.parse(JSON.stringify(STATE));
 const SAVE_KEY = 'MAVPet_SaveData';
 
 /**
+ * Recursively traverses a Three.js group, disposing all geometries, materials, and textures.
+ *
+ * @param {THREE.Object3D} group - The root object to dispose.
+ * @returns {void}
+ */
+function disposeGroup(group) {
+    if (!group) return;
+    group.traverse((child) => {
+        if (child.isMesh || child.isSprite) {
+            if (child.geometry && !child.geometry.isCached) child.geometry.dispose();
+            if (child.material && !child.material.isCached) {
+                if (child.material.map && !child.material.map.isCached) child.material.map.dispose();
+                child.material.dispose();
+            }
+        }
+    });
+}
+
+/** Cached DOM element references to avoid repeated getElementById calls. */
+let DOM = {};
+
+/** When true, updateUI() will run on the next game tick. */
+let uiDirty = true;
+
+/** Shared animation queue processed in the render loop. Each entry returns true when done. */
+const activeAnimations = [];
+
+/** Tick counter for save throttling. */
+let tickCounter = 0;
+
+/**
  * Logs a finalized monetary transaction into the player's historical ledger.
  *
  * @param {string} category - Classification subset (e.g., 'Income').
@@ -79,6 +110,7 @@ const SAVE_KEY = 'MAVPet_SaveData';
  */
 function recordTransaction(category, description, amount) {
     STATE.transactions.push({ day: STATE.day, time: STATE.gameTime, category, description, amount });
+    if (STATE.transactions.length > 200) STATE.transactions.shift();
 }
 
 /**
@@ -299,6 +331,43 @@ let roomGroup;
 let raycaster, pointer;
 let decayInterval, interestInterval;
 
+const CACHE = {
+    mat: {},
+    geo: {}
+};
+let interactableObjects = [];
+let lastIsNight = null;
+
+function setText(el, val) {
+    if (el && el.innerText !== String(val)) el.innerText = val;
+}
+function setWidth(el, val) {
+    if (el && el.style.width !== String(val)) el.style.width = val;
+}
+function updateInteractables() {
+    interactableObjects = [];
+    if (!scene) return;
+    scene.traverse((obj) => {
+        if (obj.userData && obj.userData.type === 'interactable') {
+            interactableObjects.push(obj);
+        }
+    });
+}
+
+
+/**
+ * Attaches stopPropagation listeners to all prevent-click-through elements.
+ * 
+ * @returns {void}
+ */
+function attachPreventClickThrough() {
+    document.querySelectorAll('.prevent-click-through').forEach(el => {
+        el.addEventListener('click', (e) => e.stopPropagation());
+    });
+}
+
+/** Tracks whether the global spacebar listener has been registered. */
+let spacebarListenerAttached = false;
 
 /**
  * Bootstraps runtime application instances post character election logic.
@@ -307,12 +376,7 @@ let decayInterval, interestInterval;
  * @returns {void}
  */
 window.startGame = (type) => {
-    // Add Stop Propagation listeners to all prevented elements
-    document.querySelectorAll('.prevent-click-through').forEach(el => {
-        el.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-    });
+    attachPreventClickThrough();
 
     const nameInput = document.getElementById('pet-name-input').value.trim();
 
@@ -331,6 +395,7 @@ window.startGame = (type) => {
     document.getElementById('start-screen').classList.add('hidden');
     document.getElementById('hud').classList.remove('hidden');
 
+    initDOMCache();
     initThreeJS();
     initGameLoop();
 
@@ -338,10 +403,13 @@ window.startGame = (type) => {
 
     showNotification(`Welcome, ${STATE.petName}!`, "success");
 
-    window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space') interactWithRoom();
-    });
-    
+    if (!spacebarListenerAttached) {
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') e.preventDefault();
+        });
+        spacebarListenerAttached = true;
+    }
+
     startTutorial();
 };
 
@@ -351,11 +419,7 @@ window.startGame = (type) => {
  * @returns {void}
  */
 window.resumeGame = () => {
-    document.querySelectorAll('.prevent-click-through').forEach(el => {
-        el.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-    });
+    attachPreventClickThrough();
 
     // Hydrate STATE from save data now (not before)
     loadGameState();
@@ -363,14 +427,18 @@ window.resumeGame = () => {
     document.getElementById('start-screen').classList.add('hidden');
     document.getElementById('hud').classList.remove('hidden');
 
+    initDOMCache();
     initThreeJS();
     initGameLoop();
 
     showNotification(`Welcome back, ${STATE.petName}!`, "success");
 
-    window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space') interactWithRoom();
-    });
+    if (!spacebarListenerAttached) {
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') e.preventDefault();
+        });
+        spacebarListenerAttached = true;
+    }
 };
 
 /**
@@ -391,6 +459,7 @@ function initThreeJS() {
     camera.lookAt(0, 0, 0);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
@@ -411,6 +480,7 @@ function initThreeJS() {
 
     buildRoom();
     buildPet();
+    updateInteractables();
 }
 
 /**
@@ -424,63 +494,82 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+function initCaches() {
+    if (CACHE.geo.floor) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 64; canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 64, 64);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, 32, 32); ctx.fillRect(32, 32, 32, 32);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.magFilter = THREE.NearestFilter;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(10, 10);
+    tex.isCached = true;
+
+    CACHE.mat.bathroomFloor = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 });
+    CACHE.mat.bathroomWall = new THREE.MeshStandardMaterial({ color: 0xf1f5f9 });
+    CACHE.mat.normalFloor = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+    CACHE.mat.normalWall = new THREE.MeshStandardMaterial({ color: 0x475569 });
+    
+    Object.values(CACHE.mat).forEach(m => m && (m.isCached = true));
+
+    CACHE.geo.floor = new THREE.PlaneGeometry(30, 30);
+    CACHE.geo.backWall = new THREE.BoxGeometry(30, 10, 1);
+    CACHE.geo.sideWall = new THREE.BoxGeometry(1, 10, 30);
+    Object.values(CACHE.geo).forEach(g => g && (g.isCached = true));
+}
+
 /**
  * Programmatically destructs and rebuilds 3D environment nodes mapped to room navigation states.
  * 
  * @returns {void}
  */
 function buildRoom() {
-    if (roomGroup) scene.remove(roomGroup);
+    initCaches();
+    
+    if (roomGroup) {
+        disposeGroup(roomGroup);
+        scene.remove(roomGroup);
+    }
     roomGroup = new THREE.Group();
 
     setupChores(STATE.currentRoom);
     updateTaskSidebar();
 
-    let floorMat, wallColor, doorFrameColor, doorPanelColor;
+    let floorMat, wallMat, doorFrameColor, doorPanelColor;
 
     if (STATE.currentRoom === 'bathroom') {
-        const canvas = document.createElement('canvas');
-        canvas.width = 64; canvas.height = 64;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 64, 64);
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(0, 0, 32, 32); ctx.fillRect(32, 32, 32, 32);
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.magFilter = THREE.NearestFilter;
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.wrapT = THREE.RepeatWrapping;
-        tex.repeat.set(10, 10);
-
-        floorMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 });
-        wallColor = 0xf1f5f9;
+        floorMat = CACHE.mat.bathroomFloor;
+        wallMat = CACHE.mat.bathroomWall;
         doorFrameColor = 0xffffff;
         doorPanelColor = 0xe2e8f0;
     } else {
-        floorMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
-        wallColor = 0x475569;
+        floorMat = CACHE.mat.normalFloor;
+        wallMat = CACHE.mat.normalWall;
         doorFrameColor = 0x1e293b;
         doorPanelColor = 0x64748b;
     }
 
-    const floorGeo = new THREE.PlaneGeometry(30, 30);
-    const floor = new THREE.Mesh(floorGeo, floorMat);
+    const floor = new THREE.Mesh(CACHE.geo.floor, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     roomGroup.add(floor);
 
-    const wallMat = new THREE.MeshStandardMaterial({ color: wallColor });
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(30, 10, 1), wallMat);
+    const backWall = new THREE.Mesh(CACHE.geo.backWall, wallMat);
     backWall.position.set(0, 5, -15);
     backWall.receiveShadow = true;
     roomGroup.add(backWall);
 
-    const sideWallGeo = new THREE.BoxGeometry(1, 10, 30);
-    const leftWall = new THREE.Mesh(sideWallGeo, wallMat);
+    const leftWall = new THREE.Mesh(CACHE.geo.sideWall, wallMat);
     leftWall.position.set(-15, 5, 0);
     leftWall.receiveShadow = true;
     roomGroup.add(leftWall);
 
-    const rightWall = new THREE.Mesh(sideWallGeo, wallMat);
+    const rightWall = new THREE.Mesh(CACHE.geo.sideWall, wallMat);
     rightWall.position.set(15, 5, 0);
     rightWall.receiveShadow = true;
     roomGroup.add(rightWall);
@@ -515,6 +604,7 @@ function buildRoom() {
     }
 
     scene.add(roomGroup);
+    updateInteractables();
 }
 
 /**
@@ -1023,6 +1113,7 @@ function renderToys() {
         // Interaction: Play
         ball.userData = { type: 'interactable', action: 'playWithToy' };
         roomGroup.add(ball);
+        updateInteractables();
     }
 }
 
@@ -1032,7 +1123,10 @@ function renderToys() {
  * @returns {void}
  */
 function buildPet() {
-    if (petGroup) scene.remove(petGroup);
+    if (petGroup) {
+        disposeGroup(petGroup);
+        scene.remove(petGroup);
+    }
     petGroup = new THREE.Group();
 
     const mainColor = STATE.petType === 'dog' ? 0xd97706 : (STATE.petType === 'cat' ? 0x94a3b8 : 0xe2e8f0);
@@ -1129,8 +1223,6 @@ function buildPet() {
     scene.add(petGroup);
 }
 
-let autoSaveInterval;
-
 function initGameLoop() {
     const runGameTick = () => {
         decayStats();
@@ -1151,16 +1243,20 @@ function initGameLoop() {
             buildRoom();
         }
         STATE.gameTime = nextTime % 1440;
+        uiDirty = true;
 
         if (!renderer.currentLoop) return;
-        updateUI();
+        if (uiDirty) { updateUI(); uiDirty = false; }
+        
         updatePetBehavior();
         updateEnvironment();
-        saveGameState(); // Auto-save on every tick
+
+        tickCounter++;
+        if (tickCounter % 10 === 0) saveGameState();
 
         const speedMultiplier = Math.floor((STATE.day - 1) / 5);
         const nextTickSpeed = Math.max(200, 1000 - (speedMultiplier * 150));
-        
+
         decayInterval = setTimeout(runGameTick, nextTickSpeed);
     };
 
@@ -1173,13 +1269,9 @@ function initGameLoop() {
             STATE.lifetimeEarnings += interest;
             recordTransaction('Interest', 'Savings interest (2%)', interest);
             showNotification(`Interest Earned: +$${interest.toFixed(2)}`, "success");
-            updateUI();
-            saveGameState(); // Save after interest accrual
+            uiDirty = true;
         }
     }, 60000);
-
-    // Periodic safety-net auto-save every 60 seconds
-    autoSaveInterval = setInterval(saveGameState, 60000);
 
     renderer.setAnimationLoop(animate);
     renderer.currentLoop = true;
@@ -1225,7 +1317,6 @@ function decayStats() {
 function gameOver(reason) {
     clearTimeout(decayInterval);
     clearInterval(interestInterval);
-    if (autoSaveInterval) clearInterval(autoSaveInterval);
     renderer.setAnimationLoop(null);
     renderer.currentLoop = false;
 
@@ -1266,41 +1357,69 @@ function gameOver(reason) {
     document.body.appendChild(screen);
 }
 
+/**
+ * Caches frequently accessed DOM elements to avoid repeated getElementById calls.
+ * 
+ * @returns {void}
+ */
+function initDOMCache() {
+    DOM = {
+        valHunger: document.getElementById('val-hunger'),
+        barHunger: document.getElementById('bar-hunger'),
+        valEnergy: document.getElementById('val-energy'),
+        barEnergy: document.getElementById('bar-energy'),
+        valHygiene: document.getElementById('val-hygiene'),
+        barHygiene: document.getElementById('bar-hygiene'),
+        valHappiness: document.getElementById('val-happiness'),
+        barHappiness: document.getElementById('bar-happiness'),
+        displayMoney: document.getElementById('display-money'),
+        displaySavings: document.getElementById('display-savings'),
+        displayDay: document.getElementById('display-day'),
+        displayTime: document.getElementById('display-time'),
+        spendFood: document.getElementById('spend-food'),
+        spendToys: document.getElementById('spend-toys'),
+        spendEducation: document.getElementById('spend-education'),
+        spendCare: document.getElementById('spend-care'),
+        spendRent: document.getElementById('spend-rent'),
+        spendUtilities: document.getElementById('spend-utilities'),
+        tooltip: document.getElementById('tooltip')
+    };
+}
+
 function updateUI() {
-    document.getElementById('val-hunger').innerText = Math.floor(STATE.stats.hunger);
-    document.getElementById('bar-hunger').style.width = `${STATE.stats.hunger}%`;
+    setText(DOM.valHunger, Math.floor(STATE.stats.hunger));
+    setWidth(DOM.barHunger, `${STATE.stats.hunger}%`);
 
-    document.getElementById('val-energy').innerText = Math.floor(STATE.stats.energy);
-    document.getElementById('bar-energy').style.width = `${STATE.stats.energy}%`;
+    setText(DOM.valEnergy, Math.floor(STATE.stats.energy));
+    setWidth(DOM.barEnergy, `${STATE.stats.energy}%`);
 
-    document.getElementById('val-hygiene').innerText = Math.floor(STATE.stats.hygiene);
-    document.getElementById('bar-hygiene').style.width = `${STATE.stats.hygiene}%`;
+    setText(DOM.valHygiene, Math.floor(STATE.stats.hygiene));
+    setWidth(DOM.barHygiene, `${STATE.stats.hygiene}%`);
 
-    document.getElementById('val-happiness').innerText = Math.floor(STATE.stats.happiness);
-    document.getElementById('bar-happiness').style.width = `${STATE.stats.happiness}%`;
+    setText(DOM.valHappiness, Math.floor(STATE.stats.happiness));
+    setWidth(DOM.barHappiness, `${STATE.stats.happiness}%`);
 
-    document.getElementById('display-money').innerText = STATE.money.toFixed(2);
-    document.getElementById('display-savings').innerText = STATE.savings.toFixed(2);
-    const dayEl = document.getElementById('display-day');
-    if (dayEl) dayEl.innerText = STATE.day;
+    setText(DOM.displayMoney, STATE.money.toFixed(2));
+    setText(DOM.displaySavings, STATE.savings.toFixed(2));
+    if (DOM.displayDay) setText(DOM.displayDay, STATE.day);
 
     const hrs = Math.floor(STATE.gameTime / 60);
     const mins = STATE.gameTime % 60;
     const period = hrs >= 12 ? "PM" : "AM";
     const displayHrs = hrs % 12 || 12;
     const displayMins = mins.toString().padStart(2, '0');
-    document.getElementById('display-time').innerText = `${displayHrs}:${displayMins} ${period}`;
+    setText(DOM.displayTime, `${displayHrs}:${displayMins} ${period}`);
 
     const isNight = hrs >= 22 || hrs < 6;
-    document.getElementById('display-time').className = `text-2xl font-bold ${isNight ? 'text-indigo-400' : 'text-sky-400'}`;
+    const newClass = `text-2xl font-bold ${isNight ? 'text-indigo-400' : 'text-sky-400'}`;
+    if (DOM.displayTime.className !== newClass) DOM.displayTime.className = newClass;
 
-
-    document.getElementById('spend-food').innerText = `$${STATE.spending.food.toFixed(2)}`;
-    document.getElementById('spend-toys').innerText = `$${STATE.spending.toys.toFixed(2)}`;
-    document.getElementById('spend-education').innerText = `$${STATE.spending.education.toFixed(2)}`;
-    document.getElementById('spend-care').innerText = `$${STATE.spending.care.toFixed(2)}`;
-    document.getElementById('spend-rent').innerText = `$${STATE.spending.rent.toFixed(2)}`;
-    document.getElementById('spend-utilities').innerText = `$${STATE.spending.utilities.toFixed(2)}`;
+    setText(DOM.spendFood, `$${STATE.spending.food.toFixed(2)}`);
+    setText(DOM.spendToys, `$${STATE.spending.toys.toFixed(2)}`);
+    setText(DOM.spendEducation, `$${STATE.spending.education.toFixed(2)}`);
+    setText(DOM.spendCare, `$${STATE.spending.care.toFixed(2)}`);
+    setText(DOM.spendRent, `$${STATE.spending.rent.toFixed(2)}`);
+    setText(DOM.spendUtilities, `$${STATE.spending.utilities.toFixed(2)}`);
 }
 
 /**
@@ -1343,9 +1462,12 @@ function updateEnvironment() {
     const hrs = Math.floor(STATE.gameTime / 60);
     const isNight = hrs >= 22 || hrs < 6;
 
-    const targetHex = isNight ? 0x020617 : 0x202025;
-    scene.background.setHex(targetHex);
-    scene.fog.color.setHex(targetHex);
+    if (lastIsNight !== isNight) {
+        lastIsNight = isNight;
+        const targetHex = isNight ? 0x020617 : 0x202025;
+        scene.background.setHex(targetHex);
+        scene.fog.color.setHex(targetHex);
+    }
 }
 
 /**
@@ -1361,7 +1483,7 @@ function onMouseClick(event) {
     pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
 
     raycaster.setFromCamera(pointer, camera);
-    const intersects = raycaster.intersectObjects(scene.children, true);
+    const intersects = raycaster.intersectObjects(interactableObjects, false);
 
     if (intersects.length > 0) {
         let obj = intersects[0].object;
@@ -1375,6 +1497,9 @@ function onMouseClick(event) {
     }
 }
 
+/** Timestamp of last mousemove raycast for throttling. */
+let lastMouseMoveTime = 0;
+
 /**
  * Interpolates vector projection to dynamically assess hover states on three-dimensional colliders.
  *
@@ -1382,7 +1507,8 @@ function onMouseClick(event) {
  * @returns {void}
  */
 function onMouseMove(event) {
-    const tooltip = document.getElementById('tooltip');
+    const tooltip = DOM.tooltip;
+    if (!tooltip) return;
 
     if (event.target.tagName !== 'CANVAS') {
         tooltip.style.opacity = 0;
@@ -1390,11 +1516,15 @@ function onMouseMove(event) {
         return;
     }
 
+    const now = Date.now();
+    if (now - lastMouseMoveTime < 50) return;
+    lastMouseMoveTime = now;
+
     pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
 
     raycaster.setFromCamera(pointer, camera);
-    const intersects = raycaster.intersectObjects(scene.children, true);
+    const intersects = raycaster.intersectObjects(interactableObjects, false);
 
     let hoveredObj = null;
 
@@ -1485,11 +1615,9 @@ function handleInteraction(action, object) {
             showActionIndicator(`${choreDef.actionName || 'Working'}...`);
 
             let isComplete = false;
-            let currentProgress = 0;
-            let totalNeeded = 0;
 
             if (choreDef.global) {
-                totalNeeded = choreDef.count * choreDef.room.length;
+                const totalNeeded = choreDef.count * choreDef.room.length;
                 let totalDone = 0;
                 choreDef.room.forEach(r => {
                     const rId = `${baseId}_${r}`;
@@ -1508,7 +1636,7 @@ function handleInteraction(action, object) {
                 showNotification(`Global Task Complete! +$${reward.toFixed(2)}`, "success");
                 showNotification(choreDef.lesson, "info");
             }
-            updateUI();
+            uiDirty = true;
             updateTaskSidebar();
         }
         return;
@@ -1532,7 +1660,7 @@ function handleInteraction(action, object) {
 
         STATE.stats.hygiene = 100;
         showNotification(`Squeaky clean! 🛁 (Bill: -$${waterCost})`, "success");
-        updateUI();
+        uiDirty = true;
         triggerPetReaction('bath');
     }
 
@@ -1578,7 +1706,7 @@ function handleInteraction(action, object) {
         }
 
         updateEnvironment();
-        updateUI();
+        uiDirty = true;
         // Animation: Lie down
         triggerPetReaction('sleep');
         return;
@@ -1590,7 +1718,7 @@ function handleInteraction(action, object) {
         STATE.stats.happiness = Math.min(100, STATE.stats.happiness + 20);
         STATE.stats.energy = Math.max(0, STATE.stats.energy - 10);
         showNotification(`Played with Toy! Happiness +20`, "success");
-        updateUI();
+        uiDirty = true;
         // Animation: Jump
         triggerPetReaction('play');
     }
@@ -1687,7 +1815,7 @@ window.buyItem = (type, cost) => {
             recordTransaction('Toys', 'Bouncy Ball', -cost);
             showNotification("Purchased Bouncy Ball!", "success");
         }
-        updateUI();
+        uiDirty = true;
     } else {
         showNotification("Not enough money!", "error");
     }
@@ -1706,7 +1834,7 @@ window.buyEducation = () => {
         STATE.spending.education += cost;
         recordTransaction('Education', `Education Course (Lv.${STATE.educationLevel})`, -cost);
         showNotification("Education Upgraded! Rewards +$2", "success");
-        updateUI();
+        uiDirty = true;
     } else {
         showNotification("Not enough money!", "error");
     }
@@ -1726,7 +1854,7 @@ window.depositSavings = () => {
         STATE.savings += amt;
         recordTransaction('Transfer', 'Deposit to savings', -amt);
         showNotification(`Deposited $${amt}`, "success");
-        updateUI();
+        uiDirty = true;
         checkSavingsRewards();
         el.value = '';
     } else {
@@ -1748,7 +1876,7 @@ window.withdrawSavings = () => {
         STATE.money += amt;
         recordTransaction('Transfer', 'Withdrawal from savings', amt);
         showNotification(`Withdrew $${amt}`, "success");
-        updateUI();
+        uiDirty = true;
         el.value = '';
     } else {
         showNotification("Insufficient savings", "error");
@@ -1815,7 +1943,7 @@ window.consumeItem = (type) => {
             showNotification("Premium Kibble! Hunger -40, Happy +15", "success");
             triggerPetReaction('eating');
             updateFridgeUI();
-            updateUI();
+            uiDirty = true;
         } else {
             showNotification("No food! Buy some at the market.", "warning");
         }
@@ -1913,13 +2041,24 @@ function updateTaskSidebar() {
  */
 function spawnMoneyParticles(pos) {
     if (!scene || !camera) return;
-    const particle = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshBasicMaterial({ color: 0x4ade80, side: THREE.DoubleSide, transparent: true }));
+    const mat = new THREE.MeshBasicMaterial({ color: 0x4ade80, side: THREE.DoubleSide, transparent: true });
+    const geo = new THREE.PlaneGeometry(0.5, 0.5);
+    const particle = new THREE.Mesh(geo, mat);
     particle.position.copy(pos); particle.lookAt(camera.position); scene.add(particle);
     let frame = 0;
-    const anim = setInterval(() => {
-        particle.position.y += 0.05; particle.scale.setScalar(1 + Math.sin(frame * 0.2) * 0.2); particle.material.opacity = Math.max(0, 1 - (frame / 30));
-        frame++; if (frame > 30) { clearInterval(anim); if (particle.parent) scene.remove(particle); }
-    }, 30);
+    activeAnimations.push(() => {
+        frame++;
+        particle.position.y += 0.05;
+        particle.scale.setScalar(1 + Math.sin(frame * 0.2) * 0.2);
+        mat.opacity = Math.max(0, 1 - (frame / 30));
+        if (frame > 30) {
+            if (particle.parent) scene.remove(particle);
+            geo.dispose();
+            mat.dispose();
+            return true;
+        }
+        return false;
+    });
 }
 
 /**
@@ -1953,6 +2092,9 @@ function showNotification(msg, type = 'info') {
  */
 function animate() {
     if (petGroup) { petGroup.rotation.y += 0.01; }
+    for (let i = activeAnimations.length - 1; i >= 0; i--) {
+        if (activeAnimations[i]()) activeAnimations.splice(i, 1);
+    }
     renderer.render(scene, camera);
 }
 
@@ -1968,31 +2110,33 @@ function triggerPetReaction(type) {
     if (type === 'eating') {
         const animDuration = 20;
         let frame = 0;
-        const anim = setInterval(() => {
+        activeAnimations.push(() => {
             frame++;
             petGroup.rotation.x = Math.sin(frame * 0.5) * 0.3 + 0.2;
             petGroup.scale.set(1.1, 0.9, 1.1);
             if (frame > animDuration) {
-                clearInterval(anim);
                 petGroup.rotation.x = 0;
                 petGroup.scale.set(1, 1, 1);
+                return true;
             }
-        }, 50);
+            return false;
+        });
         spawnEmoteParticle('🍖');
         spawnEmoteParticle('😋');
     }
 
     else if (type === 'bath') {
         let spins = 0;
-        const spinInterval = setInterval(() => {
+        activeAnimations.push(() => {
             if (spins < 20) {
                 petGroup.rotation.y += 0.8;
                 spins++;
+                return false;
             } else {
-                clearInterval(spinInterval);
                 petGroup.rotation.y = 0;
+                return true;
             }
-        }, 30);
+        });
         spawnEmoteParticle('🫧');
         spawnEmoteParticle('✨');
     }
@@ -2001,24 +2145,31 @@ function triggerPetReaction(type) {
         petGroup.rotation.z = Math.PI / 2;
         petGroup.position.y = 0.5;
         spawnEmoteParticle('💤');
-        setTimeout(() => {
-            if (petGroup) {
-                petGroup.rotation.z = 0;
-                petGroup.position.y = 0;
+        let sleepFrame = 0;
+        activeAnimations.push(() => {
+            sleepFrame++;
+            if (sleepFrame > 120) {
+                if (petGroup) {
+                    petGroup.rotation.z = 0;
+                    petGroup.position.y = 0;
+                }
+                return true;
             }
-        }, 2000);
+            return false;
+        });
     }
 
     else if (type === 'play') {
         let jumpHeight = 0;
-        const jumpInt = setInterval(() => {
+        activeAnimations.push(() => {
             jumpHeight += 0.2;
             petGroup.position.y = Math.sin(jumpHeight) * 2;
             if (jumpHeight > Math.PI) {
-                clearInterval(jumpInt);
                 petGroup.position.y = 0;
+                return true;
             }
-        }, 30);
+            return false;
+        });
         spawnEmoteParticle('❤️');
         spawnEmoteParticle('🎾');
     }
@@ -2048,17 +2199,18 @@ function spawnEmoteParticle(emoji) {
     scene.add(sprite);
 
     let frame = 0;
-    const anim = setInterval(() => {
+    activeAnimations.push(() => {
         sprite.position.y += 0.05;
         sprite.material.opacity = 1 - (frame / 50);
         frame++;
         if (frame > 50) {
-            clearInterval(anim);
             scene.remove(sprite);
             mat.dispose();
             tex.dispose();
+            return true;
         }
-    }, 30);
+        return false;
+    });
 }
 
 // ─── Bank Audit System ──────────────────────────────────────────────────────
@@ -2167,7 +2319,7 @@ function initNetWorthChart() {
                 label: 'Net Worth ($)',
                 data: data.map(d => d.netWorth),
                 borderColor: '#2dd4bf',
-                backgroundColor: function(context) {
+                backgroundColor: function (context) {
                     const chart = context.chart;
                     const area = chart.chartArea;
                     if (!area) return 'rgba(45,212,191,0.1)';
@@ -2410,12 +2562,12 @@ window.printAudit = () => {
 window.currentTutorialStep = -1;
 
 const TUTORIAL_STEPS = [
-    { text: "Welcome to Virtual Pet! Let me show you around. This is your new pet!", pos3D: {x:0, y:1.5, z:0}, dir: "down", yOffset: 60 },
+    { text: "Welcome to Virtual Pet! Let me show you around. This is your new pet!", pos3D: { x: 0, y: 1.5, z: 0 }, dir: "down", yOffset: 60 },
     { text: "Keep a close eye on these 4 stats! If any of them reach 0, it's Game Over.", focusId: "val-hunger", dir: "up", yOffset: 30 },
     { text: "Here is your Money, Time, and Current Day count.", focusId: "display-money", dir: "up", yOffset: 30 },
-    { text: "Click on messes around the house (like this trash bin) to earn money!", pos3D: {x:-8, y:1, z:8}, dir: "down", yOffset: 60 },
-    { text: "Use your computer to access the Marketplace to buy food, toys, and upgrades.", pos3D: {x:0, y:2, z:-14}, dir: "down", yOffset: 60 },
-    { text: "Use these doors to visit the Kitchen, Bathroom, or Bedroom.", pos3D: {x:-8, y:4, z:-14.5}, dir: "down", yOffset: 60 },
+    { text: "Click on messes around the house (like this trash bin) to earn money!", pos3D: { x: -8, y: 1, z: 8 }, dir: "down", yOffset: 60 },
+    { text: "Use your computer to access the Marketplace to buy food, toys, and upgrades.", pos3D: { x: 0, y: 2, z: -14 }, dir: "down", yOffset: 60 },
+    { text: "Use these doors to visit the Kitchen, Bathroom, or Bedroom.", pos3D: { x: -8, y: 4, z: -14.5 }, dir: "down", yOffset: 60 },
     { text: "At night, go to the Bedroom and click the Bed to sleep and restore energy. Have fun!", dir: "none" }
 ];
 
@@ -2458,7 +2610,7 @@ window.updateTutorial = () => {
         pointer.style.opacity = 0;
         return;
     }
-    
+
     pointer.style.opacity = 1;
     let targetX = window.innerWidth / 2;
     let targetY = window.innerHeight / 2;
