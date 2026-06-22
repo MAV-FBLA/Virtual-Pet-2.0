@@ -91,6 +91,9 @@ function disposeGroup(group) {
 /** Cached DOM element references to avoid repeated getElementById calls. */
 let DOM = {};
 
+/** Currently selected pet type on start screen. */
+let selectedPetType = null;
+
 /** When true, updateUI() will run on the next game tick. */
 let uiDirty = true;
 
@@ -245,22 +248,6 @@ const CHORE_CONFIG = {
         count: 3,
         actionName: "Scrubbing Dish"
     },
-    dusting: {
-        id: 'dusting',
-        name: 'Dusting the Hub',
-        reward: 6,
-        room: 'livingroom',
-        count: 3,
-        actionName: "Dusting"
-    },
-    recycling: {
-        id: 'recycling',
-        name: 'Recycling Sort',
-        reward: 14,
-        room: 'livingroom',
-        count: 1,
-        actionName: "Sorting Recycling"
-    },
     floors: {
         id: 'floors',
         name: 'Clean The Floor',
@@ -370,12 +357,40 @@ function attachPreventClickThrough() {
 let spacebarListenerAttached = false;
 
 /**
- * Bootstraps runtime application instances post character election logic.
+ * Handles pet selection on start screen with visual feedback.
  *
- * @param {string} type - Core enum ('dog', 'cat', 'rabbit').
+ * @param {string} type - Pet type ('dog', 'cat', 'rabbit').
  * @returns {void}
  */
-window.startGame = (type) => {
+window.selectPet = (type) => {
+    selectedPetType = type;
+
+    document.querySelectorAll('.pet-option').forEach(btn => {
+        const petType = btn.dataset.pet;
+        const borderEl = btn.querySelector('.absolute.inset-0');
+        if (petType === type) {
+            btn.classList.remove('border-slate-700', 'bg-slate-800');
+            btn.classList.add('border-teal-400', 'bg-teal-900/30', 'ring-2', 'ring-teal-500/50');
+            if (borderEl) borderEl.classList.remove('opacity-0');
+            if (borderEl) borderEl.classList.add('opacity-100');
+        } else {
+            btn.classList.remove('border-teal-400', 'bg-teal-900/30', 'ring-2', 'ring-teal-500/50');
+            btn.classList.add('border-slate-700', 'bg-slate-800');
+            if (borderEl) borderEl.classList.remove('opacity-100');
+            if (borderEl) borderEl.classList.add('opacity-0');
+        }
+    });
+
+    const startBtn = document.getElementById('start-game-btn');
+    if (startBtn) startBtn.disabled = false;
+};
+
+/**
+ * Bootstraps runtime application instances post character election logic.
+ *
+ * @returns {void}
+ */
+window.startGame = () => {
     attachPreventClickThrough();
 
     const nameInput = document.getElementById('pet-name-input').value.trim();
@@ -385,10 +400,15 @@ window.startGame = (type) => {
         return;
     }
 
+    if (!selectedPetType) {
+        showNotification("Please select a pet!", "error");
+        return;
+    }
+
     // Reset STATE to factory defaults before starting fresh
     Object.assign(STATE, JSON.parse(JSON.stringify(DEFAULT_STATE)));
 
-    STATE.petType = type;
+    STATE.petType = selectedPetType;
     STATE.petName = nameInput;
     recordNetWorth();
 
@@ -645,33 +665,8 @@ function setupChores(room) {
         }
     }
 
+
     if (room === 'livingroom') {
-        for (let i = 0; i < CHORE_CONFIG.dusting.count; i++) {
-            if (isCleaned('dusting', i)) continue;
-
-            const dustGroup = new THREE.Group();
-            const particleMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, transparent: true, opacity: 0.8, roughness: 1 });
-            for (let px = 0; px < 5; px++) {
-                const size = 0.1 + Math.random() * 0.15;
-                const p = new THREE.Mesh(new THREE.SphereGeometry(size, 4, 4), particleMat);
-                p.position.set((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.4);
-                dustGroup.add(p);
-            }
-            const positions = [
-                { x: -8, y: 0.2, z: 2 },
-                { x: 8, y: 0.2, z: 2 },
-                { x: 7, y: 0.2, z: 6 }
-            ];
-            const pos = positions[i] || { x: i, y: 0, z: 0 };
-            dustGroup.position.set(pos.x + (Math.random() - 0.5), pos.y, pos.z + (Math.random() - 0.5));
-
-            const hitBox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.8), new THREE.MeshBasicMaterial({ color: 0xff0000, visible: true, transparent: true, opacity: 0 }));
-            dustGroup.add(hitBox);
-            roomGroup.add(makeInteractable(dustGroup, 'dusting', i));
-        }
-    }
-
-    if (room === 'livingroom' && !isCleaned('recycling', 0)) {
         const binGroup = new THREE.Group();
         binGroup.position.set(-10, 0, 10);
         const colors = [0x3b82f6, 0x22c55e, 0xef4444];
@@ -681,10 +676,6 @@ function setupChores(room) {
             binGroup.add(bin);
         });
         roomGroup.add(binGroup);
-
-        const trash = new THREE.Mesh(new THREE.DodecahedronGeometry(0.6), new THREE.MeshStandardMaterial({ color: 0x475569, wireframe: true }));
-        trash.position.set(-8, 0.6, 8);
-        roomGroup.add(makeInteractable(trash, 'recycling', 0));
     }
 
     if (CHORE_CONFIG.floors.room.includes(room)) {
@@ -717,17 +708,17 @@ function setupChores(room) {
     if (CHORE_CONFIG.windows.room.includes(room)) {
         let winPositions = [];
         if (room === 'livingroom') winPositions = [
-            { x: 12.5, y: 5.5, z: -14.3 },
-            { x: 11.5, y: 4.5, z: -14.3 }
+            { x: 12.5, y: 6.0, z: -14.3 },
+            { x: -12.5, y: 6.0, z: -14.3 }
         ];
 
         // Limit to count
         winPositions.slice(0, CHORE_CONFIG.windows.count).forEach((pos, idx) => {
             if (isCleaned('windows', idx)) return;
-            const grime = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ color: 0x57534e, transparent: true, opacity: 0.7 }));
+            const grime = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 3.5), new THREE.MeshStandardMaterial({ color: 0x57534e, transparent: true, opacity: 0.7 }));
             grime.position.set(pos.x, pos.y, pos.z);
             if (pos.rot) grime.rotation.y = pos.rot;
-            if (pos.rot) grime.position.x -= 0.1; else grime.position.z += 0.1;
+            if (pos.rot) grime.position.x -= 0.25; else grime.position.z += 0.25;
             roomGroup.add(makeInteractable(grime, 'windows', idx));
         });
     }
@@ -804,6 +795,7 @@ function createDoor(x, y, z, rotationY, targetRoom, colorHex, frameColor = 0x1e2
 
     const hitBox = new THREE.Mesh(new THREE.BoxGeometry(5, 8, 2), new THREE.MeshBasicMaterial({ visible: false }));
     hitBox.position.y = 4;
+    hitBox.userData = { type: 'interactable', action: `changeRoom:${targetRoom}` };
     doorGroup.add(hitBox);
 
     roomGroup.add(doorGroup);
@@ -879,7 +871,7 @@ function createBathroomFixtures() {
     const tFaucetTip = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.3), chromeMat); tFaucetTip.position.set(0, 2.5, -0.8); tubGroup.add(tFaucetTip);
 
     tubGroup.userData = { type: 'interactable', action: 'cleanPet' };
-    const tubHit = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 3), new THREE.MeshBasicMaterial({ visible: false })); tubHit.position.y = 1.5; tubGroup.add(tubHit);
+    const tubHit = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 3), new THREE.MeshBasicMaterial({ visible: false })); tubHit.position.y = 1.5; tubHit.userData = { type: 'interactable', action: 'cleanPet' }; tubGroup.add(tubHit);
     roomGroup.add(tubGroup);
 
     const toiletGroup = new THREE.Group(); toiletGroup.position.set(-13, 0, -14);
@@ -949,6 +941,7 @@ function createBedroomFixtures() {
     const p2 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 1.5), pillowMat); p2.position.set(2, 3.2, -2); bedGroup.add(p2);
 
     bedGroup.userData = { type: 'interactable', action: 'sleep' };
+    const bedHit = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 7), new THREE.MeshBasicMaterial({ visible: false })); bedHit.position.y = 2; bedHit.userData = { type: 'interactable', action: 'sleep' }; bedGroup.add(bedHit);
     roomGroup.add(bedGroup);
 
     const nsGeo = new THREE.BoxGeometry(2, 2.5, 2);
@@ -983,6 +976,7 @@ function createKitchenFixtures() {
     const handleLower = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.5, 0.2), chromeMat); handleLower.position.set(-1, 2, 1.6); fridgeGroup.add(handleLower);
 
     fridgeGroup.userData = { type: 'interactable', action: 'openFridge' };
+    const fridgeHit = new THREE.Mesh(new THREE.BoxGeometry(3, 7, 3), new THREE.MeshBasicMaterial({ visible: false })); fridgeHit.position.y = 3.5; fridgeHit.userData = { type: 'interactable', action: 'openFridge' }; fridgeGroup.add(fridgeHit);
     roomGroup.add(fridgeGroup);
 
     const counterHeight = 3.5;
