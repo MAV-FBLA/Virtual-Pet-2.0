@@ -2336,7 +2336,11 @@ function initNetWorthChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: { color: '#e2e8f0', padding: 10, font: { family: 'Inter', size: 11 }, usePointStyle: true, pointStyle: 'line' }
+                },
                 tooltip: {
                     backgroundColor: 'rgba(15,23,42,0.95)',
                     borderColor: 'rgba(45,212,191,0.5)',
@@ -2378,6 +2382,39 @@ function initSpendingChart() {
     const data = cats.map(c => STATE.spending[c] || 0);
     const hasData = data.some(v => v > 0);
     if (spendingChartInstance) spendingChartInstance.destroy();
+    const sliceLabelPlugin = {
+        id: 'sliceLabels',
+        afterDraw(chart) {
+            const { ctx, data, chartArea } = chart;
+            const meta = chart.getDatasetMeta(0);
+            if (!meta.data || !hasData) return;
+            const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+            if (total <= 0) return;
+            ctx.save();
+            ctx.font = 'bold 11px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            meta.data.forEach((arc, i) => {
+                const val = data.datasets[0].data[i];
+                if ((val / total) < 0.05) return;
+                const angle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
+                const radius = (arc.outerRadius + arc.innerRadius) / 2;
+                const x = Math.cos(angle) * radius + arc.x;
+                const y = Math.sin(angle) * radius + arc.y;
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 3;
+                const pct = ((val / total) * 100).toFixed(1);
+                const lines = [data.labels[i], pct + '%'];
+                const lineH = 13;
+                const startY = y - (lines.length - 1) * lineH / 2;
+                lines.forEach((line, j) => {
+                    ctx.fillText(line, x, startY + j * lineH);
+                });
+            });
+            ctx.restore();
+        }
+    };
     spendingChartInstance = new Chart(canvas.getContext('2d'), {
         type: 'doughnut',
         data: {
@@ -2394,7 +2431,7 @@ function initSpendingChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '60%',
+            cutout: '62%',
             plugins: {
                 legend: {
                     position: 'bottom',
@@ -2417,7 +2454,8 @@ function initSpendingChart() {
                     }
                 }
             }
-        }
+        },
+        plugins: [sliceLabelPlugin]
     });
 }
 

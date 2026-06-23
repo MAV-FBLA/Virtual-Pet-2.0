@@ -397,6 +397,8 @@ body {
 
 @media print {
     body > *:not(#modal-bank-audit) { display: none !important; }
+    body { background: white !important; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
     .audit-modal {
         position: static !important;
@@ -415,49 +417,78 @@ body {
     }
 
     .audit-header {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+        background: #f1f5f9 !important;
+        border-bottom: 2px solid #d1d5db !important;
         border-radius: 0 !important;
     }
 
+    .audit-bank-name { color: #1e293b !important; }
+    .audit-subtitle { color: #475569 !important; }
+    .audit-acct-value { color: #1e293b !important; }
+    .audit-acct-label { color: #64748b !important; }
+
     .audit-section { break-inside: avoid; }
     .audit-footer { display: none !important; }
+
+    .audit-section-title { color: #334155 !important; }
 
     .audit-chart-card,
     .audit-metric-card,
     .audit-summary-item {
         background: #f8fafc !important;
         border: 1px solid #e2e8f0 !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
     }
+
+    .audit-chart-title { color: #334155 !important; }
+    .audit-grade { color: #1e293b !important; }
+    .audit-grade-desc { color: #475569 !important; }
+    .audit-metric-value { color: #1e293b !important; }
+    .audit-metric-sub { color: #475569 !important; }
+
+    .audit-summary-total {
+        background: #f8fafc !important;
+        border-color: #d1d5db !important;
+    }
+    .audit-summary-label { color: #475569 !important; }
+    .audit-summary-value { color: #1e293b !important; }
 
     .audit-table th {
         background: #f1f5f9 !important;
         color: #334155 !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
     }
 
     .audit-table td { color: #334155 !important; }
-    .audit-section-title { color: #334155 !important; }
     .audit-metric-label { color: #64748b !important; }
-    .audit-summary-label { color: #475569 !important; }
-    .audit-summary-value { color: #1e293b !important; }
+    .audit-time-sub { color: #64748b !important; }
 
     .audit-positive {
         color: #16a34a !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
     }
     .audit-negative {
         color: #dc2626 !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+    }
+
+    .audit-cat-badge {
+        background: #f1f5f9 !important;
+        color: #334155 !important;
+        border: 1px solid #d1d5db !important;
+    }
+    .audit-cat-income,
+    .audit-cat-food,
+    .audit-cat-toys,
+    .audit-cat-education,
+    .audit-cat-rent,
+    .audit-cat-utilities,
+    .audit-cat-healthcare,
+    .audit-cat-interest,
+    .audit-cat-transfer {
+        background: #f1f5f9 !important;
+        color: #334155 !important;
     }
 
     .audit-ledger-wrap {
         max-height: none !important;
         overflow: visible !important;
+        border-color: #d1d5db !important;
     }
 }
