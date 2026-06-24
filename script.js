@@ -238,6 +238,17 @@ function resetGame() {
 }
 window.resetGame = resetGame;
 
+/** Savings thresholds (in $) that unlock cosmetic rewards, in ascending order. */
+const SAVINGS_MILESTONES = [100, 200, 300, 400, 500];
+
+/** Human-readable display names for each room key. */
+const ROOM_NAMES = {
+    livingroom: 'Living Room',
+    bedroom: 'Bedroom',
+    kitchen: 'Kitchen',
+    bathroom: 'Bathroom'
+};
+
 const CHORE_CONFIG = {
     dishes: {
         id: 'dishes',
@@ -283,6 +294,15 @@ const CHORE_CONFIG = {
         room: 'bathroom',
         count: 1,
         actionName: "Wiping Mirror"
+    },
+    trash: {
+        id: 'trash',
+        name: 'Take Out Trash',
+        reward: 12,
+        lesson: "Small daily habits keep your home (and budget) tidy!",
+        room: 'livingroom',
+        count: 3,
+        actionName: "Bagging Trash"
     }
 };
 
@@ -357,6 +377,48 @@ function attachPreventClickThrough() {
 let spacebarListenerAttached = false;
 
 /**
+ * Dispatches the primary "utility" action for the room the player is currently in.
+ * Bound to the spacebar via onGlobalKeydown. No-op while a modal or the tutorial is open.
+ *
+ * @returns {void}
+ */
+function handleRoomSpaceAction() {
+    if (STATE.gameOver) return;
+    if (typeof window.currentTutorialStep === 'number' && window.currentTutorialStep >= 0) return;
+
+    // Ignore the shortcut while any modal/overlay is open.
+    const modalIds = ['modal-marketplace', 'modal-fridge', 'modal-help', 'modal-bank-audit'];
+    const aModalOpen = modalIds.some(id => {
+        const el = document.getElementById(id);
+        return el && !el.classList.contains('hidden');
+    });
+    if (aModalOpen) return;
+
+    const roomAction = {
+        livingroom: 'openMarket',
+        kitchen: 'openFridge',
+        bedroom: 'sleep',
+        bathroom: 'cleanPet'
+    }[STATE.currentRoom];
+
+    if (roomAction) handleInteraction(roomAction);
+}
+
+/**
+ * Global keyboard handler. Spacebar triggers the current room's main utility
+ * (e.g. Sleep in the Bedroom) and prevents the default page scroll.
+ *
+ * @param {KeyboardEvent} e - The keydown event.
+ * @returns {void}
+ */
+function onGlobalKeydown(e) {
+    if (e.code === 'Space') {
+        e.preventDefault();
+        handleRoomSpaceAction();
+    }
+}
+
+/**
  * Handles pet selection on start screen with visual feedback.
  *
  * @param {string} type - Pet type ('dog', 'cat', 'rabbit').
@@ -418,15 +480,15 @@ window.startGame = () => {
     initDOMCache();
     initThreeJS();
     initGameLoop();
+    ensureHudResizeObserver();
+    requestAnimationFrame(() => layoutHud());
 
     saveGameState(); // Persist initial state
 
     showNotification(`Welcome, ${STATE.petName}!`, "success");
 
     if (!spacebarListenerAttached) {
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') e.preventDefault();
-        });
+        window.addEventListener('keydown', onGlobalKeydown);
         spacebarListenerAttached = true;
     }
 
@@ -450,13 +512,13 @@ window.resumeGame = () => {
     initDOMCache();
     initThreeJS();
     initGameLoop();
+    ensureHudResizeObserver();
+    requestAnimationFrame(() => layoutHud());
 
     showNotification(`Welcome back, ${STATE.petName}!`, "success");
 
     if (!spacebarListenerAttached) {
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') e.preventDefault();
-        });
+        window.addEventListener('keydown', onGlobalKeydown);
         spacebarListenerAttached = true;
     }
 };
@@ -477,6 +539,7 @@ function initThreeJS() {
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 5, 15);
     camera.lookAt(0, 0, 0);
+    updateCameraFraming();
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -509,9 +572,123 @@ function initThreeJS() {
  * @returns {void}
  */
 function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+    updateCameraFraming();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    layoutHud();
+}
+
+/**
+ * Lays out the top HUD bar responsively:
+ *   1. Keeps the stats panel and the info/buttons cluster on a single row whenever they
+ *      fit, and only stacks them into two rows at the exact point they would overlap.
+ *   2. Positions the left emotion panel and right task sidebar directly beneath the bar,
+ *      whatever height it ends up being.
+ *
+ * The fit test measures the groups at their natural (un-shrunk) width, so the switch is
+ * driven by real overlap rather than a guessed pixel breakpoint — it adapts to content
+ * (longer balances, "MAX" savings goal, etc.) automatically.
+ *
+ * @returns {void}
+ */
+/** Caches so the (layout-thrashing) HUD measurement only runs when something actually changed. */
+let _hudLastWidth = -1;
+let _hudContentSig = '';
+let _hudResizeObserver = null;
+
+/**
+ * Attaches a ResizeObserver to the top HUD bar so its one-row/two-row layout updates the
+ * instant the available width changes — independent of window 'resize' events. Idempotent.
+ *
+ * @returns {void}
+ */
+function ensureHudResizeObserver() {
+    if (_hudResizeObserver || typeof ResizeObserver === 'undefined') return;
+    const topBar = document.getElementById('hud-top-bar');
+    if (!topBar) return;
+    _hudResizeObserver = new ResizeObserver(() => layoutHud());
+    _hudResizeObserver.observe(topBar);
+}
+
+/**
+ * @param {boolean} [force=false] - Re-measure even if the window width is unchanged
+ *        (used when bar content width may have changed, e.g. a new day / bigger balance).
+ */
+function layoutHud(force = false) {
+    const hud = document.getElementById('hud');
+    const topBar = document.getElementById('hud-top-bar');
+    if (!hud || !topBar || hud.classList.contains('hidden')) return;
+
+    // Key the cache on the bar's own available width (reflects the real rendered size,
+    // unlike window.innerWidth which can lag). Only the available width or a content
+    // change can alter the fit decision, so skip the expensive remeasure otherwise.
+    const avail = topBar.clientWidth;
+    if (!force && avail === _hudLastWidth) return;
+    _hudLastWidth = avail;
+
+    const stats = topBar.children[0];
+    const cluster = topBar.children[1];
+    if (stats && cluster) {
+        // Measure as a single row at natural width (no flex-shrink, so groups can't
+        // squeeze/wrap), then check whether that overflows the available width.
+        topBar.classList.remove('flex-col', 'items-start');
+        topBar.classList.add('flex-row', 'items-center', 'justify-between');
+        stats.style.flexShrink = '0';
+        cluster.style.flexShrink = '0';
+
+        const fitsOneRow = topBar.scrollWidth <= topBar.clientWidth + 1;
+
+        stats.style.flexShrink = '';
+        cluster.style.flexShrink = '';
+
+        if (!fitsOneRow) {
+            // Not enough room — stack into two rows (stats above, cluster below/right).
+            topBar.classList.remove('flex-row', 'items-center', 'justify-between');
+            topBar.classList.add('flex-col', 'items-start');
+        }
+        // else: keep the single-row classes already applied for measuring.
+    }
+
+    // Drop the emotion panel and task sidebar just below the bar's actual height.
+    const hudTop = hud.getBoundingClientRect().top;
+    const barBottom = topBar.getBoundingClientRect().bottom;
+    const offset = `${Math.max(0, Math.round(barBottom - hudTop)) + 12}px`;
+
+    const sidebar = document.getElementById('task-sidebar');
+    const emotion = document.getElementById('pet-emotion-panel');
+    if (sidebar && sidebar.style.top !== offset) sidebar.style.top = offset;
+    if (emotion && emotion.style.top !== offset) emotion.style.top = offset;
+}
+
+/**
+ * Sizes the camera so the whole room stays framed regardless of window aspect ratio.
+ *
+ * A perspective camera's horizontal field of view shrinks as the window gets narrower,
+ * which clips the sides of the room (e.g. the far doors) on split-screen / small windows.
+ * To compensate, on windows narrower than the design aspect we widen the *vertical* FOV
+ * so the horizontal coverage stays constant — the scene zooms out instead of cropping.
+ *
+ * @returns {void}
+ */
+function updateCameraFraming() {
+    if (!camera) return;
+    const aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = aspect;
+
+    const BASE_VFOV = 45;          // vertical FOV used on wide screens
+    const DESIGN_ASPECT = 16 / 9;  // reference aspect the scene was tuned for
+    const deg2rad = Math.PI / 180;
+
+    // Horizontal FOV the design provides at the reference aspect.
+    const baseHFov = 2 * Math.atan(Math.tan((BASE_VFOV * deg2rad) / 2) * DESIGN_ASPECT);
+
+    if (aspect >= DESIGN_ASPECT) {
+        camera.fov = BASE_VFOV;
+    } else {
+        // Widen vertical FOV so the horizontal FOV (room width) stays constant.
+        const vFov = 2 * Math.atan(Math.tan(baseHFov / 2) / aspect) / deg2rad;
+        camera.fov = Math.min(vFov, 110); // cap to avoid extreme fish-eye distortion
+    }
+    camera.updateProjectionMatrix();
 }
 
 function initCaches() {
@@ -667,6 +844,7 @@ function setupChores(room) {
 
 
     if (room === 'livingroom') {
+        // Decorative recycling bins (always present).
         const binGroup = new THREE.Group();
         binGroup.position.set(-10, 0, 10);
         const colors = [0x3b82f6, 0x22c55e, 0xef4444];
@@ -676,6 +854,17 @@ function setupChores(room) {
             binGroup.add(bin);
         });
         roomGroup.add(binGroup);
+
+        // Trash bags in front of the bins are the interactable "Take Out Trash" chore.
+        const trashPos = [{ x: -9, z: 8 }, { x: -6.5, z: 8.5 }, { x: -8, z: 6.5 }];
+        trashPos.slice(0, CHORE_CONFIG.trash.count).forEach((p, idx) => {
+            if (isCleaned('trash', idx)) return;
+            const bag = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 6), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.9 }));
+            bag.scale.set(1, 0.85, 1);
+            bag.position.set(p.x, 0.5, p.z);
+            bag.castShadow = true;
+            roomGroup.add(makeInteractable(bag, 'trash', idx));
+        });
     }
 
     if (CHORE_CONFIG.floors.room.includes(room)) {
@@ -782,8 +971,7 @@ function createDoor(x, y, z, rotationY, targetRoom, colorHex, frameColor = 0x1e2
     ctx.font = 'bold 60px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const names = { livingroom: 'Living Room', bedroom: 'Bedroom', kitchen: 'Kitchen', bathroom: 'Bathroom' };
-    const roomDisplayName = names[targetRoom] || targetRoom;
+    const roomDisplayName = ROOM_NAMES[targetRoom] || targetRoom;
     ctx.fillText(roomDisplayName, 256, 64);
 
     const tex = new THREE.CanvasTexture(canvas);
@@ -1368,6 +1556,7 @@ function initDOMCache() {
         barHappiness: document.getElementById('bar-happiness'),
         displayMoney: document.getElementById('display-money'),
         displaySavings: document.getElementById('display-savings'),
+        goalSavings: document.getElementById('goal-savings'),
         displayDay: document.getElementById('display-day'),
         displayTime: document.getElementById('display-time'),
         spendFood: document.getElementById('spend-food'),
@@ -1395,6 +1584,10 @@ function updateUI() {
 
     setText(DOM.displayMoney, STATE.money.toFixed(2));
     setText(DOM.displaySavings, STATE.savings.toFixed(2));
+    if (DOM.goalSavings) {
+        const nextMilestone = SAVINGS_MILESTONES.find(m => STATE.savings < m);
+        setText(DOM.goalSavings, nextMilestone !== undefined ? nextMilestone : 'MAX ★');
+    }
     if (DOM.displayDay) setText(DOM.displayDay, STATE.day);
 
     const hrs = Math.floor(STATE.gameTime / 60);
@@ -1414,6 +1607,14 @@ function updateUI() {
     setText(DOM.spendCare, `$${STATE.spending.care.toFixed(2)}`);
     setText(DOM.spendRent, `$${STATE.spending.rent.toFixed(2)}`);
     setText(DOM.spendUtilities, `$${STATE.spending.utilities.toFixed(2)}`);
+
+    // Width changes are handled by a ResizeObserver; here we only need to re-evaluate the
+    // one-row/two-row fit when the bar's *content* (which drives its natural width) changes.
+    const contentSig = `${STATE.day}|${STATE.money.toFixed(2)}|${STATE.savings.toFixed(2)}|${DOM.goalSavings ? DOM.goalSavings.innerText : ''}`;
+    if (contentSig !== _hudContentSig) {
+        _hudContentSig = contentSig;
+        layoutHud(true);
+    }
 }
 
 /**
@@ -1678,9 +1879,11 @@ function handleInteraction(action, object) {
             minutesSlept = wakeTime - STATE.gameTime;
         }
 
-        // Variable Energy Gain: 8 hours (480 mins) = 100% restoration
+        // Variable Energy Gain: 8 hours (480 mins) = 100% restoration.
+        // Added on top of current energy (capped at 100) so sleeping never *reduces* energy.
         const energyRestore = Math.min(100, Math.floor((minutesSlept / 480) * 100));
-        STATE.stats.energy = energyRestore;
+        STATE.stats.energy = Math.min(100, STATE.stats.energy + energyRestore);
+        const energyNow = Math.floor(STATE.stats.energy);
         STATE.gameTime = wakeTime; // Fast forward to Morning
 
         if (crossedMidnight) {
@@ -1694,9 +1897,9 @@ function handleInteraction(action, object) {
 
             STATE.chores.progress = {}; // Reset Chores
             buildRoom(); // Reset Visuals
-            showNotification(`Slept ${Math.floor(minutesSlept / 60)}h. Energy: ${energyRestore}%. Rent -$${rentCost}. New Day! 🌅`, "success");
+            showNotification(`Slept ${Math.floor(minutesSlept / 60)}h. Energy: ${energyNow}%. Rent -$${rentCost}. New Day! 🌅`, "success");
         } else {
-            showNotification(`Slept ${Math.floor(minutesSlept / 60)}h. Energy: ${energyRestore}%.`, "success");
+            showNotification(`Slept ${Math.floor(minutesSlept / 60)}h. Energy: ${energyNow}%.`, "success");
         }
 
         updateEnvironment();
@@ -1731,7 +1934,7 @@ window.changeRoom = (roomName) => {
     // Set Room and Rebuild Scene
     STATE.currentRoom = roomName;
     buildRoom();
-    showNotification(`Entered ${roomName}`, "info");
+    showNotification(`Entered ${ROOM_NAMES[roomName] || roomName}`, "info");
 };
 
 /**
@@ -1792,6 +1995,12 @@ window.toggleUI = () => {
  * @returns {void}
  */
 window.buyItem = (type, cost) => {
+    // One-time toys cannot be repurchased (would otherwise charge again for nothing).
+    if (type === 'ball' && STATE.inventory.toys.includes('ball')) {
+        showNotification("You already own the Bouncy Ball!", "warning");
+        return;
+    }
+
     if (STATE.money >= cost) {
         STATE.money -= cost;
         if (type === 'kibble') {
@@ -1801,10 +2010,8 @@ window.buyItem = (type, cost) => {
             showNotification("Purchased Premium Kibble! +1 Stock", "success");
 
         } else if (type === 'ball') {
-            if (!STATE.inventory.toys.includes('ball')) {
-                STATE.inventory.toys.push('ball');
-                renderToys();
-            }
+            STATE.inventory.toys.push('ball');
+            renderToys();
             STATE.spending.toys += cost;
             recordTransaction('Toys', 'Bouncy Ball', -cost);
             showNotification("Purchased Bouncy Ball!", "success");
@@ -1827,11 +2034,37 @@ window.buyEducation = () => {
         STATE.educationLevel++;
         STATE.spending.education += cost;
         recordTransaction('Education', `Education Course (Lv.${STATE.educationLevel})`, -cost);
-        showNotification("Education Upgraded! Rewards +$2", "success");
+        showNotification("Education Upgraded! Chore rewards +$5", "success");
         uiDirty = true;
     } else {
         showNotification("Not enough money!", "error");
     }
+};
+
+/**
+ * Purchases a comprehensive vet wellness visit. Unlike the (cheap) bath, this is a
+ * premium healthcare expense that restores hygiene and happiness and boosts energy,
+ * teaching that proactive healthcare is a real, recurring cost.
+ *
+ * @returns {void}
+ */
+window.buyVetCheckup = () => {
+    const cost = 40;
+    if (STATE.money < cost) {
+        showNotification("Not enough money for the vet!", "error");
+        return;
+    }
+    STATE.money -= cost;
+    STATE.spending.care += cost;
+    recordTransaction('Healthcare', 'Vet wellness checkup', -cost);
+
+    STATE.stats.hygiene = 100;
+    STATE.stats.happiness = Math.min(100, STATE.stats.happiness + 25);
+    STATE.stats.energy = Math.min(100, STATE.stats.energy + 15);
+
+    showNotification(`🏥 Vet checkup done! Your pet feels great. (-$${cost})`, "success");
+    uiDirty = true;
+    triggerPetReaction('bath');
 };
 
 /**
@@ -1934,7 +2167,7 @@ window.consumeItem = (type) => {
             STATE.stats.hunger = Math.min(100, STATE.stats.hunger + 40); // Restore Hunger
             STATE.stats.happiness = Math.min(100, STATE.stats.happiness + 15);
             STATE.stats.energy = Math.min(100, STATE.stats.energy + 5);
-            showNotification("Premium Kibble! Hunger -40, Happy +15", "success");
+            showNotification("Premium Kibble! Hunger +40, Happy +15", "success");
             triggerPetReaction('eating');
             updateFridgeUI();
             uiDirty = true;
@@ -2597,7 +2830,7 @@ const TUTORIAL_STEPS = [
     { text: "Welcome to Virtual Pet! Let me show you around. This is your new pet!", pos3D: { x: 0, y: 1.5, z: 0 }, dir: "down", yOffset: 60 },
     { text: "Keep a close eye on these 4 stats! If any of them reach 0, it's Game Over.", focusId: "val-hunger", dir: "up", yOffset: 30 },
     { text: "Here is your Money, Time, and Current Day count.", focusId: "display-money", dir: "up", yOffset: 30 },
-    { text: "Click on messes around the house (like this trash bin) to earn money!", pos3D: { x: -8, y: 1, z: 8 }, dir: "down", yOffset: 60 },
+    { text: "Click on messes around the house (like these trash bags) to clean them and earn money!", pos3D: { x: -8, y: 1, z: 8 }, dir: "down", yOffset: 60 },
     { text: "Use your computer to access the Marketplace to buy food, toys, and upgrades.", pos3D: { x: 0, y: 2, z: -14 }, dir: "down", yOffset: 60 },
     { text: "Use these doors to visit the Kitchen, Bathroom, or Bedroom.", pos3D: { x: -8, y: 4, z: -14.5 }, dir: "down", yOffset: 60 },
     { text: "At night, go to the Bedroom and click the Bed to sleep and restore energy. Have fun!", dir: "none" }
